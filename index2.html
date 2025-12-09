@@ -1,95 +1,1154 @@
-<<html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-    <title>Online Auction System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plagiarism Detection System</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 30px; }
-        h1 { color: #333; }
-        .auction-item { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .item-title { font-size: 20px; font-weight: bold; color: #333; margin-bottom: 10px; }
-        .item-price { font-size: 24px; color: #e74c3c; font-weight: bold; margin: 10px 0; }
-        .item-time { font-size: 14px; color: #7f8c8d; margin-bottom: 15px; }
-        .bid-section { display: flex; gap: 10px; margin-top: 15px; }
-        input[type="number"] { padding: 10px; border: 1px solid #bdc3c7; border-radius: 4px; flex: 1; }
-        button { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #2980b9; }
-        .bid-history { margin-top: 15px; font-size: 12px; color: #555; max-height: 150px; overflow-y: auto; }
-        .bid-entry { padding: 5px; border-bottom: 1px solid #ecf0f1; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        /* Navigation Bar */
+        .navbar {
+            background: linear-gradient(135deg, #2c3e50, #4a6491);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo-icon {
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 25px;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 15px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-links a:hover, .nav-links a.active {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .auth-buttons {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .btn-login, .btn-register {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-login {
+            background-color: transparent;
+            border: 2px solid white;
+            color: white;
+        }
+        
+        .btn-login:hover {
+            background-color: white;
+            color: #2c3e50;
+        }
+        
+        .btn-register {
+            background-color: #3498db;
+            color: white;
+            border: 2px solid #3498db;
+        }
+        
+        .btn-register:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+        
+        /* Page Container */
+        .page-container {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .page-container.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Home Page */
+        .hero {
+            background: linear-gradient(rgba(44, 62, 80, 0.9), rgba(44, 62, 80, 0.8)), url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=1600&q=80');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            text-align: center;
+            padding: 80px 30px;
+            margin-bottom: 50px;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            max-width: 700px;
+            margin: 0 auto 30px;
+            opacity: 0.9;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+            text-decoration: none;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .features {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 30px 50px;
+        }
+        
+        .features h2 {
+            text-align: center;
+            font-size: 2.2rem;
+            margin-bottom: 40px;
+            color: #2c3e50;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        
+        .feature-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        /* Login Page */
+        .auth-container {
+            max-width: 450px;
+            margin: 50px auto;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        
+        .auth-header {
+            background: linear-gradient(135deg, #2c3e50, #4a6491);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .auth-header h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .auth-form {
+            padding: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .forgot-password {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+        
+        .btn-auth {
+            width: 100%;
+            padding: 14px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-auth:hover {
+            background-color: #2980b9;
+        }
+        
+        .auth-footer {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        .auth-footer a {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Dashboard Page */
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #2c3e50, #4a6491);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        
+        .main-content {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .input-section, .results-section {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 25px;
+        }
+        
+        .section-title {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eaeaea;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 250px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .check-btn {
+            background-color: #3498db;
+            color: white;
+            flex-grow: 1;
+        }
+        
+        .check-btn:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+        }
+        
+        .clear-btn {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .clear-btn:hover {
+            background-color: #c0392b;
+        }
+        
+        .sample-btn {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
+        .sample-btn:hover {
+            background-color: #27ae60;
+        }
+        
+        .result-box {
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .result-box.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .safe {
+            background-color: #d5f4e6;
+            border-left: 6px solid #2ecc71;
+        }
+        
+        .warning {
+            background-color: #fef9e7;
+            border-left: 6px solid #f1c40f;
+        }
+        
+        .danger {
+            background-color: #fadbd8;
+            border-left: 6px solid #e74c3c;
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .similarity-score {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        
+        .result-message {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+        
+        .details {
+            margin-top: 20px;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .sources-list {
+            list-style-type: none;
+            margin-top: 15px;
+        }
+        
+        .sources-list li {
+            padding: 8px 0;
+            border-bottom: 1px dashed #ddd;
+        }
+        
+        .sources-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .match-percentage {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .low-match {
+            background-color: #d5f4e6;
+            color: #27ae60;
+        }
+        
+        .medium-match {
+            background-color: #fef9e7;
+            color: #f39c12;
+        }
+        
+        .high-match {
+            background-color: #fadbd8;
+            color: #e74c3c;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+            margin-top: 20px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Assessment Test Page Styles */
+        .assessment-container {
+            max-width: 1200px;
+            margin: 30px auto;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+        
+        .question-container {
+            padding: 30px;
+            min-height: 400px;
+        }
+        
+        .question-box {
+            margin-bottom: 30px;
+            padding: 25px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .question-number {
+            font-size: 1.2rem;
+            color: #3498db;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .question-text {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .option {
+            padding: 15px;
+            background-color: white;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .option:hover {
+            border-color: #3498db;
+            background-color: #f0f8ff;
+        }
+        
+        .option.selected {
+            border-color: #2ecc71;
+            background-color: #f0fff4;
+        }
+        
+        .option.correct {
+            border-color: #2ecc71;
+            background-color: #d5f4e6;
+        }
+        
+        .option.incorrect {
+            border-color: #e74c3c;
+            background-color: #fadbd8;
+        }
+        
+        .assessment-navigation {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px 30px;
+            border-top: 1px solid #eee;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background-color: #eee;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: #3498db;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .progress-text {
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        /* Skill Gap Analysis Styles */
+        .skill-container {
+            padding: 30px;
+        }
+        
+        .skill-category {
+            margin-bottom: 30px;
+        }
+        
+        .skill-meter {
+            height: 25px;
+            background-color: #eee;
+            border-radius: 12px;
+            margin: 10px 0;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .skill-fill {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 1s ease;
+        }
+        
+        .skill-score {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-weight: 600;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        .skill-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .recommendation-box {
+            background-color: #f0f8ff;
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 8px;
+        }
+        
+        .recommendation-list {
+            list-style-type: none;
+            margin-top: 10px;
+        }
+        
+        .recommendation-list li {
+            padding: 8px 0;
+            border-bottom: 1px dashed #ddd;
+        }
+        
+        .recommendation-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin: 30px 0;
+            position: relative;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                padding: 15px;
+            }
+            
+            .nav-links {
+                margin: 20px 0;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .auth-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .hero h1 {
+                font-size: 2.2rem;
+            }
+            
+            .hero {
+                padding: 50px 20px;
+            }
+            
+            .assessment-navigation {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🏆 Online Auction System</h1>
-            <p>Real-Time Bidding Platform</p>
-        </header>
-        <div id="auctionsList"></div>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="logo">
+            <span class="logo-icon">🔍</span>
+            <span>PlagiarismDetect</span>
+        </div>
+        
+        <ul class="nav-links">
+            <li><a href="#" onclick="showPage('home')" class="active">Home</a></li>
+            <li><a href="#" onclick="showPage('dashboard')">Dashboard</a></li>
+            <li><a href="#" onclick="showPage('assessment')">Assessment Test</a></li>
+            <li><a href="#" onclick="showPage('skillgap')">Skill Gap Analysis</a></li>
+            <li><a href="#" onclick="showPage('about')">About</a></li>
+            <li><a href="#" onclick="showPage('contact')">Contact</a></li>
+        </ul>
+        
+        <div class="auth-buttons">
+            <button class="btn-login" onclick="showPage('login')">Login</button>
+            <button class="btn-register" onclick="showPage('register')">Register</button>
+        </div>
+    </nav>
+    
+    <!-- Home Page -->
+    <div id="home" class="page-container active">
+        <section class="hero">
+            <h1>Advanced Plagiarism Detection System</h1>
+            <p>Ensure the originality of your content with our powerful AI-powered plagiarism checker. Fast, accurate, and reliable for students, educators, and professionals.</p>
+            <button class="btn-primary" onclick="showPage('dashboard')">Check Your Text Now</button>
+            <button class="btn-primary" onclick="showPage('assessment')" style="margin-left: 15px; background-color: #2ecc71;">Take Assessment Test</button>
+        </section>
+        
+        <section class="features">
+            <h2>Why Choose Our System?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Fast & Accurate</h3>
+                    <p>Get instant results with high accuracy using our advanced algorithms.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Secure & Private</h3>
+                    <p>Your documents are safe with us. We never store or share your content.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Detailed Reports</h3>
+                    <p>Receive comprehensive reports with similarity scores and sources.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Skill Assessment</h3>
+                    <p>Take assessment tests and identify skill gaps for improvement.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Login Page -->
+    <div id="login" class="page-container">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h2>Welcome Back</h2>
+                <p>Sign in to your account</p>
+            </div>
+            
+            <form class="auth-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="Enter your email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter your password" required>
+                </div>
+                
+                <div class="form-options">
+                    <div class="remember-me">
+                        <input type="checkbox" id="remember">
+                        <label for="remember">Remember me</label>
+                    </div>
+                    
+                    <a href="#" class="forgot-password" onclick="alert('Password reset feature would be implemented here')">Forgot Password?</a>
+                </div>
+                
+                <button type="submit" class="btn-auth">Sign In</button>
+                
+                <div class="auth-footer">
+                    <p>Don't have an account? <a href="#" onclick="showPage('register')">Create one now</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Register Page -->
+    <div id="register" class="page-container">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h2>Create Account</h2>
+                <p>Join our plagiarism detection community</p>
+            </div>
+            
+            <form class="auth-form" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label for="reg-name">Full Name</label>
+                    <input type="text" id="reg-name" placeholder="Enter your full name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reg-email">Email Address</label>
+                    <input type="email" id="reg-email" placeholder="Enter your email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reg-password">Password</label>
+                    <input type="password" id="reg-password" placeholder="Create a password" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="reg-confirm">Confirm Password</label>
+                    <input type="password" id="reg-confirm" placeholder="Confirm your password" required>
+                </div>
+                
+                <button type="submit" class="btn-auth">Create Account</button>
+                
+                <div class="auth-footer">
+                    <p>Already have an account? <a href="#" onclick="showPage('login')">Sign in here</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Dashboard Page (Plagiarism Checker) -->
+    <div id="dashboard" class="page-container">
+        <div class="container">
+            <header>
+                <h1>Plagiarism Detection System</h1>
+                <p class="subtitle">Check your text for originality and potential plagiarism issues</p>
+            </header>
+            
+            <div class="main-content">
+                <div class="input-section">
+                    <h2 class="section-title">Enter Text to Check</h2>
+                    <textarea id="textInput" placeholder="Paste your text here (minimum 50 characters for accurate results)..."></textarea>
+                    
+                    <div class="button-group">
+                        <button class="check-btn" onclick="checkPlagiarism()">Check for Plagiarism</button>
+                        <button class="clear-btn" onclick="clearText()">Clear Text</button>
+                        <button class="sample-btn" onclick="loadSample()">Load Sample</button>
+                    </div>
+                    
+                    <div class="loading" id="loadingIndicator">
+                        <div class="spinner"></div>
+                        <p>Analyzing text for potential plagiarism...</p>
+                    </div>
+                </div>
+                
+                <div class="results-section">
+                    <h2 class="section-title">Analysis Results</h2>
+                    <div class="result-box" id="resultBox">
+                        <div class="result-header">
+                            <h3>Similarity Score</h3>
+                            <div class="similarity-score" id="similarityScore">0%</div>
+                        </div>
+                        
+                        <p class="result-message" id="resultMessage">Your text appears to be original.</p>
+                        
+                        <div class="details">
+                            <p><strong>Analysis Details:</strong></p>
+                            <p id="analysisDetails">No plagiarism detected in the submitted text.</p>
+                            
+                            <div id="sourcesContainer" style="display:none;">
+                                <p><strong>Potential Sources:</strong></p>
+                                <ul class="sources-list" id="sourcesList"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-text">
+                        <p><strong>How it works:</strong> This system compares your text against online sources and a database of published content to detect potential plagiarism. Results are indicative and should be verified.</p>
+                        
+                        <div class="score-guide">
+                            <p><strong>Score Interpretation:</strong></p>
+                            <ul>
+                                <li><span class="match-percentage low-match">0-15%</span> - Low similarity, likely original</li>
+                                <li><span class="match-percentage medium-match">16-40%</span> - Moderate similarity, review suggested</li>
+                                <li><span class="match-percentage high-match">41-100%</span> - High similarity, potential plagiarism</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>This plagiarism detection tool is for educational purposes. Always verify results with multiple sources.</p>
+                <p>© 2023 Plagiarism Detection System | All rights reserved</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Assessment Test Page -->
+    <div id="assessment" class="page-container">
+        <div class="assessment-container">
+            <header>
+                <h1>Student Assessment Test</h1>
+                <p class="subtitle">Evaluate your skills and identify areas for improvement</p>
+            </header>
+            
+            <div class="question-container" id="questionContainer">
+                <!-- Questions will be dynamically loaded here -->
+            </div>
+            
+            <div class="progress-text" id="progressText">Question 1 of 10</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            
+            <div class="assessment-navigation">
+                <button onclick="previousQuestion()" id="prevBtn" disabled>Previous</button>
+                <button onclick="nextQuestion()" id="nextBtn">Next Question</button>
+                <button onclick="submitTest()" id="submitBtn" style="display: none; background-color: #2ecc71;">Submit Test</button>
+            </div>
+            
+            <div class="loading" id="testLoadingIndicator">
+                <div class="spinner"></div>
+                <p>Generating your skill gap analysis...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Skill Gap Analysis Page -->
+    <div id="skillgap" class="page-container">
+        <div class="assessment-container">
+            <header>
+                <h1>Skill Gap Analysis</h1>
+                <p class="subtitle">Detailed analysis of your skills and personalized recommendations</p>
+            </header>
+            
+            <div class="skill-container">
+                <div id="skillAnalysisResults">
+                    <div class="result-box safe">
+                        <h3>Your Skill Analysis</h3>
+                        <p>Complete the assessment test to get your personalized skill gap analysis.</p>
+                        <button class="btn-primary" onclick="showPage('assessment')" style="margin-top: 15px;">Take Assessment Test</button>
+                    </div>
+                </div>
+                
+                <div class="recommendation-box" id="recommendationsBox" style="display: none;">
+                    <h3>Personalized Recommendations</h3>
+                    <p>Based on your assessment results, here are areas to focus on:</p>
+                    <ul class="recommendation-list" id="recommendationsList"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- About Page -->
+    <div id="about" class="page-container">
+        <div class="container">
+            <header>
+                <h1>About Our System</h1>
+                <p class="subtitle">Learn about our plagiarism detection technology</p>
+            </header>
+            <div class="main-content" style="grid-template-columns: 1fr;">
+                <div class="input-section">
+                    <h3>Our Mission</h3>
+                    <p>We provide a reliable, user-friendly plagiarism detection system for students, educators, and professionals. Our goal is to promote academic integrity and originality in written content.</p>
+                    
+                    <h3 style="margin-top: 30px;">How It Works</h3>
+                    <p>Our system uses advanced algorithms to compare submitted text against a vast database of online sources, academic papers, and publications.</p>
+                    
+                    <h3 style="margin-top: 30px;">Skill Assessment</h3>
+                    <p>Our assessment test helps students identify their strengths and weaknesses across various academic and professional skills, providing personalized recommendations for improvement.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contact Page -->
+    <div id="contact" class="page-container">
+        <div class="container">
+            <header>
+                <h1>Contact Us</h1>
+                <p class="subtitle">Get in touch with our support team</p>
+            </header>
+            <div class="main-content" style="grid-template-columns: 1fr;">
+                <div class="input-section">
+                    <h3>Contact Information</h3>
+                    <p>Email: support@plagiarismdetect.com</p>
+                    <p>Phone: +1 (555) 123-4567</p>
+                    <p>Address: 123 Innovation Drive, Tech City, TC 10101</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        const auctions = [
-            { id: 1, title: "Vintage Watch", startPrice: 100, currentBid: 150, endTime: Date.now() + 3600000, bids: [{user: 'John', amount: 150, time: new Date().toLocaleTimeString()}] },
-            { id: 2, title: "Antique Vase", startPrice: 50, currentBid: 85, endTime: Date.now() + 7200000, bids: [{user: 'Sarah', amount: 85, time: new Date().toLocaleTimeString()}] },
-            { id: 3, title: "Rare Book", startPrice: 30, currentBid: 45, endTime: Date.now() + 1800000, bids: [{user: 'Mike', amount: 45, time: new Date().toLocaleTimeString()}] }
-        ];
-
-        function renderAuctions() {
-            const list = document.getElementById('auctionsList');
-            list.innerHTML = auctions.map(auction => `
-                <div class="auction-item">
-                    <div class="item-title">${auction.title}</div>
-                    <div class="item-price">Current Bid: $${auction.currentBid}</div>
-                    <div class="item-time">Time Remaining: <span class="countdown" data-id="${auction.id}"></span></div>
-                    <div class="bid-section">
-                        <input type="number" id="bid-${auction.id}" placeholder="Enter bid amount" min="${auction.currentBid + 1}">
-                        <button onclick="placeBid(${auction.id})">Place Bid</button>
-                    </div>
-                    <div class="bid-history">
-                        <strong>Bid History:</strong>
-                        ${auction.bids.map(b => `<div class="bid-entry">${b.user}: $${b.amount} at ${b.time}</div>`).join('')}
-                    </div>
-                </div>
-            `).join('');
-            updateCountdowns();
-        }
-
-        function placeBid(auctionId) {
-            const auction = auctions.find(a => a.id === auctionId);
-            const bidInput = document.getElementById(`bid-${auctionId}`);
-            const bidAmount = parseFloat(bidInput.value);
-
-            if (bidAmount > auction.currentBid) {
-                auction.currentBid = bidAmount;
-                auction.bids.push({ user: 'You', amount: bidAmount, time: new Date().toLocaleTimeString() });
-                bidInput.value = '';
-                renderAuctions();
-            } else {
-                alert(`Bid must be greater than $${auction.currentBid}`);
+        // Page Management
+        let currentPage = 'home';
+        let isLoggedIn = false;
+        let currentTestScore = null;
+        
+        function showPage(pageId) {
+            // Hide all pages
+            document.querySelectorAll('.page-container').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Update navigation links
+            document.querySelectorAll('.nav-links a').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected page
+            document.getElementById(pageId).classList.add('active');
+            
+            // Update active nav link if it exists
+            const navLink = document.querySelector(`.nav-links a[onclick*="${pageId}"]`);
+            if (navLink) {
+                navLink.classList.add('active');
+            }
+            
+            currentPage = pageId;
+            
+            // Load sample text if dashboard is shown
+            if (pageId === 'dashboard' && document.getElementById('textInput').value === '') {
+                loadSample();
+            }
+            
+            // Initialize assessment if assessment page is shown
+            if (pageId === 'assessment') {
+                initializeAssessment();
+            }
+            
+            // Load skill gap analysis if available
+            if (pageId === 'skillgap' && currentTestScore !== null) {
+                displaySkillGapAnalysis(currentTestScore);
             }
         }
-
-        function updateCountdowns() {
-            document.querySelectorAll('.countdown').forEach(el => {
-                const auctionId = parseInt(el.dataset.id);
-                const auction = auctions.find(a => a.id === auctionId);
-                const remaining = auction.endTime - Date.now();
-                if (remaining > 0) {
-                    const hours = Math.floor(remaining / 3600000);
-                    const mins = Math.floor((remaining % 3600000) / 60000);
-                    const secs = Math.floor((remaining % 60000) / 1000);
-                    el.textContent = `${hours}h ${mins}m ${secs}s`;
-                } else {
-                    el.textContent = 'Ended';
-                }
-            });
+        
+        // Auth Functions
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            // Simple validation
+            if (email && password) {
+                // In a real app, this would be an API call
+                isLoggedIn = true;
+                alert('Login successful! Redirecting to dashboard...');
+                showPage('dashboard');
+                
+                // Update navbar
+                updateNavForLoggedInUser(email);
+            }
         }
-
-        renderAuctions();
-        setInterval(updateCountdowns, 1000);
-    </script>
-</body>
-</html>
+        
+        function handleRegister(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const confirm = document.getElementById('reg-confirm').value;
+            
+            // Simple validation
+            if (password !== confirm) {
+                alert('Passwords do not match!');
+                return;
+            }
+            
+            if (name && email && password) {
+                // In a real app, this would be an API call
+                isLoggedIn = true;
+                alert('Registration successful! Welcome to PlagiarismDetect.');
+                showPage('dashboard');
+                
+                // Update navbar
+                updateNavForLoggedInUser(email);
+            }
+        }
+        
+        function updateNavForLoggedInUser(email) {
+            const authButtons = document.querySelector('.auth-buttons');
+            authButtons.innerHTML = `
+                <span style="margin-right: 15px;">Welcome, ${email.split('@')[0]}</span>
+                <button class="btn-login" onclick="logout()">Logout</button>
+            `;
+        }
+        
+        function logout() {
+            isLoggedIn = false;
+            document.querySelector('.auth-buttons').innerHTML = `
+                <button class="btn-login" onclick="showPage('login')">Login</button>
+                <button class="btn-register" onclick="showPage('register')">Register</button>
+            `;
+            showPage('home');
+        }
+        
+        // Plagiarism Detection
