@@ -1,430 +1,75 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Automated AI Question Paper Generator</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-            color: #111;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-        }
-
-        /* Header & Navigation */
-        header {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #0366d6;
-            cursor: pointer;
-        }
-
-        .nav-buttons {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .btn {
-            padding: 0.5rem 1.5rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .btn-primary {
-            background: #0366d6;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #0056b3;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #545b62;
-        }
-
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-info {
-            background: #17a2b8;
-            color: white;
-        }
-
-        .btn-info:hover {
-            background: #138496;
-        }
-
-        .btn-warning {
-            background: #ffc107;
-            color: #212529;
-        }
-
-        .btn-warning:hover {
-            background: #e0a800;
-        }
-
-        .btn-disabled {
-            background: #cccccc;
-            color: #666666;
-            cursor: not-allowed;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .close-modal {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #666;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 1rem;
-        }
-
-        textarea.form-control {
-            min-height: 100px;
-            resize: vertical;
-        }
-
-        .file-upload {
-            border: 2px dashed #ddd;
-            padding: 2rem;
-            text-align: center;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .file-upload:hover {
-            border-color: #0366d6;
-            background: #f8f9fa;
-        }
-
-        .file-upload input {
-            display: none;
-        }
-
-        /* Home Page */
-        .home-container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        .hero {
-            text-align: center;
-            padding: 4rem 2rem;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            margin-bottom: 3rem;
-        }
-
-        .hero h1 {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
-            color: #0366d6;
-        }
-
-        .hero p {
-            font-size: 1.2rem;
-            color: #666;
-            max-width: 600px;
-            margin: 0 auto 2rem;
-        }
-
-        .generate-section, .validation-section {
-            background: white;
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            display: none;
-        }
-
-        .controls-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        /* Login Required Overlay */
-        .login-required {
-            text-align: center;
-            padding: 4rem 2rem;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .login-required h2 {
-            color: #0366d6;
-            margin-bottom: 1rem;
-        }
-
-        .login-required p {
-            color: #666;
-            margin-bottom: 2rem;
-            max-width: 500px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        /* Output Section */
-        #output, #validationOutput {
-            white-space: pre-wrap;
-            background: #f7f7f8;
-            padding: 1.5rem;
-            margin-top: 2rem;
-            border-radius: 10px;
-            border: 2px solid #e1e4e8;
-            font-family: monospace;
-            max-height: 500px;
-            overflow-y: auto;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
-        }
-
-        /* Validation Results */
-        .validation-results {
-            margin-top: 2rem;
-            padding: 1.5rem;
-            background: #f8f9fa;
-            border-radius: 10px;
-            border: 1px solid #dee2e6;
-        }
-
-        .validation-results h3 {
-            color: #0366d6;
-            margin-bottom: 1rem;
-        }
-
-        .validation-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .stat-box {
-            background: white;
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid #e9ecef;
-        }
-
-        .stat-box .stat-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #0366d6;
-        }
-
-        .stat-box .stat-label {
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 0.5rem;
-        }
-
-        /* Advanced Options */
-        .advanced-options {
-            background: #f8f9fa;
-            padding: 1.5rem;
-            border-radius: 10px;
-            margin-top: 1rem;
-            border: 1px solid #dee2e6;
-        }
-
-        .advanced-options summary {
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 1rem;
-            color: #0366d6;
-        }
-
-        .advanced-options[open] summary {
-            margin-bottom: 1.5rem;
-        }
-
-        /* Tabs */
-        .nav-tabs {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 2rem;
-            border-bottom: 2px solid #dee2e6;
-            padding-bottom: 0.5rem;
-        }
-
-        .tab-btn {
-            padding: 0.75rem 1.5rem;
-            background: none;
-            border: none;
-            border-radius: 6px 6px 0 0;
-            cursor: pointer;
-            font-weight: 600;
-            color: #666;
-            transition: all 0.3s;
-        }
-
-        .tab-btn:hover {
-            background: #f8f9fa;
-        }
-
-        .tab-btn.active {
-            background: #0366d6;
-            color: white;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            header {
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .nav-buttons {
-                width: 100%;
-                justify-content: center;
-                flex-wrap: wrap;
-            }
-
-            .hero {
-                padding: 2rem 1rem;
-            }
-
-            .hero h1 {
-                font-size: 2rem;
-            }
-
-            .controls-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .nav-tabs {
-                flex-direction: column;
-            }
-
-            .tab-btn {
-                border-radius: 6px;
-                margin-bottom: 0.5rem;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <!-- Header -->
     <header>
-        <div class="logo" id="homeBtn">AI Question Generator</div>
+        <div class="logo" id="homeBtn">
+            📚 AI Question Generator
+        </div>
         <div class="nav-buttons">
-            <button id="generatePaperBtn" class="btn btn-disabled" disabled>📄 Generate Paper</button>
-            <button id="validatePaperBtn" class="btn btn-disabled" disabled>✓ Validate Answers</button>
-            <button id="loginBtn" class="btn btn-primary">Login</button>
-            <button id="registerBtn" class="btn btn-secondary">Register</button>
+            <button id="headerHomeBtn" class="btn btn-secondary" style="display: none;">
+                🏠 Home
+            </button>
+            <button id="loginBtn" class="btn btn-primary">
+                🔐 Login
+            </button>
+            <button id="registerBtn" class="btn btn-secondary">
+                📝 Register
+            </button>
         </div>
     </header>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <span id="toastIcon">ℹ️</span>
+        <span id="toastMessage">Notification message</span>
+    </div>
 
     <!-- Login Modal -->
     <div id="loginModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Login</h2>
-                <button class="close-modal">&times;</button>
+                <h2>🔐 Login to Your Account</h2>
+                <button class="close-modal" data-modal="loginModal">&times;</button>
             </div>
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="loginEmail">Email</label>
-                    <input type="email" id="loginEmail" class="form-control" required>
+                    <label for="loginEmail">Email Address</label>
+                    <input type="email" id="loginEmail" class="form-control" 
+                           placeholder="Enter your email" required>
+                    <div class="error-message" id="loginEmailError"></div>
                 </div>
+                
                 <div class="form-group">
                     <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" class="form-control" required>
+                    <input type="password" id="loginPassword" class="form-control" 
+                           placeholder="Enter your password" required>
+                    <div class="error-message" id="loginPasswordError"></div>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+
+                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="margin-bottom: 0;">
+                        <input type="checkbox" id="rememberMe" style="margin-right: 0.5rem;">
+                        Remember me
+                    </label>
+                    <a href="#" id="forgotPassword" style="font-size: 0.9rem;">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;" id="loginSubmitBtn">
+                    <span id="loginBtnText">Login</span>
+                    <span id="loginLoading" class="loading" style="display: none;"></span>
+                </button>
             </form>
+
+            <div class="form-switch">
+                Don't have an account? <a id="switchToRegister">Register here</a>
+            </div>
         </div>
     </div>
 
@@ -432,824 +77,360 @@
     <div id="registerModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Register</h2>
-                <button class="close-modal">&times;</button>
+                <h2>📝 Create New Account</h2>
+                <button class="close-modal" data-modal="registerModal">&times;</button>
             </div>
             <form id="registerForm">
                 <div class="form-group">
                     <label for="regName">Full Name</label>
-                    <input type="text" id="regName" class="form-control" required>
+                    <input type="text" id="regName" class="form-control" 
+                           placeholder="Enter your full name" required>
+                    <div class="error-message" id="regNameError"></div>
                 </div>
+                
                 <div class="form-group">
-                    <label for="regEmail">Email</label>
-                    <input type="email" id="regEmail" class="form-control" required>
+                    <label for="regEmail">Email Address</label>
+                    <input type="email" id="regEmail" class="form-control" 
+                           placeholder="Enter your email" required>
+                    <div class="error-message" id="regEmailError"></div>
                 </div>
+                
                 <div class="form-group">
                     <label for="regPassword">Password</label>
-                    <input type="password" id="regPassword" class="form-control" required>
+                    <input type="password" id="regPassword" class="form-control" 
+                           placeholder="Create a password (min. 6 characters)" required
+                           minlength="6">
+                    <div class="password-strength">
+                        <div class="strength-bar" id="passwordStrength"></div>
+                    </div>
+                    <div class="error-message" id="regPasswordError"></div>
                 </div>
+                
                 <div class="form-group">
                     <label for="regConfirmPassword">Confirm Password</label>
-                    <input type="password" id="regConfirmPassword" class="form-control" required>
+                    <input type="password" id="regConfirmPassword" class="form-control" 
+                           placeholder="Confirm your password" required>
+                    <div class="error-message" id="regConfirmPasswordError"></div>
                 </div>
-                <button type="submit" class="btn btn-success" style="width: 100%;">Register</button>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: flex-start; font-size: 0.9rem;">
+                        <input type="checkbox" id="agreeTerms" style="margin-right: 0.5rem; margin-top: 0.2rem;" required>
+                        I agree to the <a href="#" style="color: #0366d6;">Terms of Service</a> and <a href="#" style="color: #0366d6;">Privacy Policy</a>
+                    </label>
+                    <div class="error-message" id="termsError"></div>
+                </div>
+
+                <button type="submit" class="btn btn-success" style="width: 100%;" id="registerSubmitBtn">
+                    <span id="registerBtnText">Create Account</span>
+                    <span id="registerLoading" class="loading" style="display: none;"></span>
+                </button>
             </form>
+
+            <div class="form-switch">
+                Already have an account? <a id="switchToLogin">Login here</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔑 Forgot Password</h2>
+                <button class="close-modal" data-modal="forgotPasswordModal">&times;</button>
+            </div>
+            <form id="forgotPasswordForm">
+                <div class="form-group">
+                    <label for="forgotEmail">Email Address</label>
+                    <input type="email" id="forgotEmail" class="form-control" 
+                           placeholder="Enter your email" required>
+                    <div class="error-message" id="forgotEmailError"></div>
+                    <div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
+                        Enter your email address and we'll send you a password reset link.
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;" id="forgotSubmitBtn">
+                    <span id="forgotBtnText">Send Reset Link</span>
+                    <span id="forgotLoading" class="loading" style="display: none;"></span>
+                </button>
+            </form>
+
+            <div class="form-switch">
+                Remember your password? <a id="switchToLoginFromForgot">Login here</a>
+            </div>
         </div>
     </div>
 
     <!-- Main Content -->
-    <main class="home-container">
-        <!-- Home Page (shown when not logged in) -->
-        <section id="homeSection" class="hero">
-            <h1>Automated AI Question Paper Generator</h1>
-            <p>Create professional question papers in seconds. Customize subjects, topics, difficulty levels, and question types to generate perfect assessments.</p>
-            <div id="loginRequired" class="login-required">
-                <h2>🔒 Login Required</h2>
-                <p>Please register and login to access the question paper generator and answer validation tools.</p>
-                <button id="loginFromHome" class="btn btn-primary" style="margin-right: 1rem;">Login</button>
-                <button id="registerFromHome" class="btn btn-success">Register</button>
+    <main>
+        <!-- Home Section -->
+        <section id="homeSection" class="section active">
+            <div class="home-container">
+                <div class="hero">
+                    <h1>Automated AI Question Paper Generator</h1>
+                    <p>Create professional question papers in seconds. Customize subjects, topics, difficulty levels, and question types to generate perfect assessments.</p>
+                </div>
+
+                <div id="loginRequired" class="login-required">
+                    <h2>🔒 Login Required</h2>
+                    <p>Please register and login to access the question paper generator and answer validation tools.</p>
+                    <div class="action-buttons" style="margin-top: 2rem;">
+                        <button id="loginFromHome" class="btn btn-primary">🔐 Login</button>
+                        <button id="registerFromHome" class="btn btn-success">📝 Register</button>
+                    </div>
+                </div>
+
+                <div id="welcomeSection" class="login-required" style="display: none;">
+                    <h2>Welcome back! 👋</h2>
+                    <p>You're now logged in. Access all features to create and manage question papers.</p>
+                    <div class="action-buttons" style="margin-top: 2rem;">
+                        <button id="startGenerating" class="btn btn-primary">📄 Start Generating Papers</button>
+                        <button id="startValidating" class="btn btn-success">✓ Validate Answer Papers</button>
+                    </div>
+                </div>
             </div>
         </section>
 
-        <!-- Tabs for logged in users -->
-        <div id="loggedInTabs" class="nav-tabs" style="display: none;">
-            <button id="generateTab" class="tab-btn active">📄 Generate Question Paper</button>
-            <button id="validateTab" class="tab-btn">✓ Validate Answer Paper</button>
-        </div>
+        <!-- Generate Paper Section -->
+        <section id="generateSection" class="section">
+            <div class="home-container">
+                <div class="hero">
+                    <h1>Generate Question Paper</h1>
+                    <p>Configure your question paper settings and let AI generate a perfect assessment.</p>
+                    
+                    <!-- Section Navigation for Generate Page -->
+                    <div class="section-navigation">
+                        <button id="homeFromGenerate" class="btn btn-secondary">🏠 Home</button>
+                        <button id="validateFromGenerate" class="btn btn-success">✓ Validate Answers</button>
+                    </div>
+                </div>
+                
+                <!-- Content for Generate Page -->
+                <div class="form-container">
+                    <h3 style="color: #0366d6; margin-bottom: 1.5rem;">📋 Question Paper Configuration</h3>
+                    
+                    <!-- Paper Details Form -->
+                    <form id="questionPaperForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="paperTitle">📝 Paper Title</label>
+                                <input type="text" id="paperTitle" class="form-control" 
+                                       placeholder="Enter paper title (e.g., Final Exam 2024)" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="paperSubject">📚 Subject</label>
+                                <select id="paperSubject" class="form-control" required>
+                                    <option value="">Select Subject</option>
+                                    <option value="mathematics">Mathematics</option>
+                                    <option value="physics">Physics</option>
+                                    <option value="chemistry">Chemistry</option>
+                                    <option value="biology">Biology</option>
+                                    <option value="english">English</option>
+                                    <option value="history">History</option>
+                                    <option value="geography">Geography</option>
+                                    <option value="computer_science">Computer Science</option>
+                                    <option value="economics">Economics</option>
+                                    <option value="business_studies">Business Studies</option>
+                                </select>
+                            </div>
+                        </div>
 
-        <!-- Question Paper Generation Section -->
-        <section id="paperGenerationSection" class="generate-section">
-            <h2 style="margin-bottom: 2rem; color: #0366d6;">Generate Your Question Paper</h2>
-            
-            <div class="controls-grid">
-                <div class="form-group">
-                    <label for="subject">Subject</label>
-                    <input id="subject" type="text" class="form-control" placeholder="e.g., Mathematics, Physics">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="paperDate">📅 Exam Date</label>
+                                <input type="date" id="paperDate" class="form-control" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="paperTime">⏰ Exam Duration (minutes)</label>
+                                <input type="number" id="paperTime" class="form-control" 
+                                       placeholder="Enter duration in minutes" min="30" max="300" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="totalMarks">🎯 Total Marks</label>
+                                <input type="number" id="totalMarks" class="form-control" 
+                                       placeholder="Enter total marks" min="10" max="200" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>❓ Question Types</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_mcq" value="mcq" checked>
+                                    <label for="qtype_mcq">Multiple Choice (MCQ)</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_oneword" value="oneword">
+                                    <label for="qtype_oneword">One Word Answer</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_short" value="short">
+                                    <label for="qtype_short">Short Answer</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_long" value="long">
+                                    <label for="qtype_long">Long Answer</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_essay" value="essay">
+                                    <label for="qtype_essay">Essay Type</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_truefalse" value="truefalse">
+                                    <label for="qtype_truefalse">True/False</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="difficultyLevel">📊 Difficulty Level</label>
+                            <select id="difficultyLevel" class="form-control" required>
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                                <option value="mixed">Mixed Difficulty</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="paperTopics">📖 Topics (comma separated)</label>
+                            <textarea id="paperTopics" class="form-control" 
+                                      rows="3" 
+                                      placeholder="Enter topics, separated by commas (e.g., Algebra, Geometry, Calculus)"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="additionalInstructions">📝 Additional Instructions</label>
+                            <textarea id="additionalInstructions" class="form-control" 
+                                      rows="3" 
+                                      placeholder="Any special instructions for the question paper"></textarea>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="action-container">
+                            <div class="file-upload" id="uploadTemplateBtn">
+                                <div style="pointer-events: none;">
+                                    <div>📤</div>
+                                    <h4>Upload Template</h4>
+                                    <p>Upload existing question paper template (Optional)</p>
+                                    <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX</p>
+                                </div>
+                                <input type="file" id="templateUpload" accept=".pdf,.doc,.docx">
+                            </div>
+
+                            <div style="display: flex; gap: 1rem;">
+                                <button type="button" id="generatePaperBtn" class="btn btn-primary">
+                                    🚀 Generate Paper
+                                </button>
+                                <button type="button" id="downloadPaperBtn" class="btn btn-success" disabled>
+                                    ⬇️ Download PDF
+                                </button>
+                                <button type="button" id="resetFormBtn" class="btn btn-warning">
+                                    🔄 Reset Form
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Preview Section -->
+                    <div id="paperPreview" class="preview-container" style="display: none;">
+                        <h4>📄 Generated Paper Preview</h4>
+                        <div id="previewContent" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
+                            <!-- Preview content will be inserted here -->
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="topic">Topics / Keywords (comma separated)</label>
-                    <input id="topic" type="text" class="form-control" placeholder="e.g., calculus, limits, derivatives">
-                </div>
-
-                <div class="form-group">
-                    <label for="difficulty">Difficulty</label>
-                    <select id="difficulty" class="form-control">
-                        <option value="easy">Easy</option>
-                        <option value="moderate" selected>Moderate</option>
-                        <option value="hard">Hard</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="count">Number of questions</label>
-                    <input id="count" type="number" class="form-control" min="1" max="50" value="10">
-                </div>
-
-                <div class="form-group">
-                    <label for="type">Question type</label>
-                    <select id="type" class="form-control">
-                        <option value="mixed" selected>Mixed (MCQ, Short, Essay)</option>
-                        <option value="mcq">MCQ</option>
-                        <option value="short">Short answer</option>
-                        <option value="essay">Essay</option>
-                    </select>
+                <!-- Bottom Navigation -->
+                <div class="section-navigation" style="margin-top: 2rem;">
+                    <button id="bottomHomeFromGenerate" class="btn btn-secondary">🏠 Home</button>
+                    <button id="bottomValidateFromGenerate" class="btn btn-success">✓ Validate Answers</button>
                 </div>
             </div>
-
-            <!-- File Upload for Enhancement -->
-            <div class="form-group">
-                <label>Upload Existing Questions (Optional - for enhancement)</label>
-                <div class="file-upload" id="questionsFileUpload">
-                    <input type="file" id="questionsFile" accept=".txt,.pdf,.doc,.docx">
-                    <p>📁 Drag & drop or click to upload</p>
-                    <p style="font-size: 0.9rem; color: #666;">Supports: .txt, .pdf, .doc, .docx</p>
-                </div>
-                <div id="questionsFileName" style="margin-top: 0.5rem; font-size: 0.9rem;"></div>
-            </div>
-
-            <!-- Advanced Options -->
-            <details class="advanced-options">
-                <summary>Advanced Options</summary>
-                <div class="controls-grid">
-                    <div class="form-group">
-                        <label for="bloomLevel">Bloom's Taxonomy Level</label>
-                        <select id="bloomLevel" class="form-control">
-                            <option value="remembering">Remembering</option>
-                            <option value="understanding" selected>Understanding</option>
-                            <option value="applying">Applying</option>
-                            <option value="analyzing">Analyzing</option>
-                            <option value="evaluating">Evaluating</option>
-                            <option value="creating">Creating</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="timeLimit">Time Limit (minutes)</label>
-                        <input id="timeLimit" type="number" class="form-control" min="15" max="180" value="60">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="language">Language</label>
-                        <select id="language" class="form-control">
-                            <option value="english" selected>English</option>
-                            <option value="spanish">Spanish</option>
-                            <option value="french">French</option>
-                            <option value="german">German</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="includeInstructions">Include Instructions</label>
-                        <select id="includeInstructions" class="form-control">
-                            <option value="yes" selected>Yes</option>
-                            <option value="no">No</option>
-                        </select>
-                    </div>
-                </div>
-            </details>
-
-            <button id="generate" class="btn btn-primary">Generate Paper</button>
-            
-            <div class="action-buttons">
-                <button id="enhanceGenerate" class="btn btn-info">✨ Enhance & Generate</button>
-                <button id="print" class="btn btn-secondary">Print Paper</button>
-                <button id="download" class="btn btn-secondary">Download .txt</button>
-                <button id="clear" class="btn btn-secondary">Clear</button>
-            </div>
-
-            <div id="output" aria-live="polite"></div>
         </section>
 
-        <!-- Answer Validation Section -->
-        <section id="validationSection" class="validation-section">
-            <h2 style="margin-bottom: 2rem; color: #28a745;">Validate Answer Paper</h2>
-            
-            <div class="form-group">
-                <label>Upload Question Paper</label>
-                <div class="file-upload" id="questionPaperUpload">
-                    <input type="file" id="questionPaperFile" accept=".txt,.pdf,.doc,.docx">
-                    <p>📁 Upload question paper</p>
-                    <p style="font-size: 0.9rem; color: #666;">Supports: .txt, .pdf, .doc, .docx</p>
-                </div>
-                <div id="questionPaperFileName" style="margin-top: 0.5rem; font-size: 0.9rem;"></div>
-            </div>
-
-            <div class="form-group">
-                <label>Upload Answer Paper</label>
-                <div class="file-upload" id="answerPaperUpload">
-                    <input type="file" id="answerPaperFile" accept=".txt,.pdf,.doc,.docx">
-                    <p>📁 Upload answer paper</p>
-                    <p style="font-size: 0.9rem; color: #666;">Supports: .txt, .pdf, .doc, .docx</p>
-                </div>
-                <div id="answerPaperFileName" style="margin-top: 0.5rem; font-size: 0.9rem;"></div>
-            </div>
-
-            <div class="form-group">
-                <label for="validationMode">Validation Mode</label>
-                <select id="validationMode" class="form-control">
-                    <option value="auto" selected>Auto-evaluation</option>
-                    <option value="strict">Strict Checking</option>
-                    <option value="lenient">Lenient Checking</option>
-                </select>
-            </div>
-
-            <button id="validate" class="btn btn-success">Validate Answers</button>
-            <button id="clearValidation" class="btn btn-secondary">Clear</button>
-
-            <div id="validationOutput"></div>
-
-            <div id="validationResults" class="validation-results" style="display: none;">
-                <h3>Validation Results</h3>
-                <div class="validation-stats">
-                    <div class="stat-box">
-                        <div class="stat-value" id="totalQuestions">0</div>
-                        <div class="stat-label">Total Questions</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="correctAnswers">0</div>
-                        <div class="stat-label">Correct Answers</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="incorrectAnswers">0</div>
-                        <div class="stat-label">Incorrect Answers</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="scorePercentage">0%</div>
-                        <div class="stat-label">Score</div>
+        <!-- Validate Answers Section -->
+        <section id="validateSection" class="section">
+            <div class="home-container">
+                <div class="hero">
+                    <h1>Validate Answer Papers</h1>
+                    <p>Upload answer sheets and let AI validate and grade them automatically.</p>
+                    
+                    <!-- Section Navigation for Validate Page -->
+                    <div class="section-navigation">
+                        <button id="homeFromValidate" class="btn btn-secondary">🏠 Home</button>
+                        <button id="generateFromValidate" class="btn btn-primary">📄 Generate Papers</button>
                     </div>
                 </div>
-                <div id="detailedResults"></div>
+                
+                <!-- Content for Validate Page -->
+                <div class="form-container">
+                    <h3 style="color: #0366d6; margin-bottom: 1.5rem;">✓ Answer Paper Validation</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="answerPaperTitle">📝 Answer Paper Title</label>
+                            <input type="text" id="answerPaperTitle" class="form-control" 
+                                   placeholder="Enter answer paper title" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="studentCount">👥 Number of Students</label>
+                            <input type="number" id="studentCount" class="form-control" 
+                                   placeholder="Number of answer sheets" min="1" max="100" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>📤 Upload Answer Sheets</label>
+                        <div class="file-upload" id="uploadAnswersBtn">
+                            <div style="pointer-events: none;">
+                                <div>📁</div>
+                                <h4>Upload Answer Sheets</h4>
+                                <p>Click to upload answer sheets for validation</p>
+                                <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, Images</p>
+                            </div>
+                            <input type="file" id="answersUpload" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple>
+                        </div>
+                        <div id="fileList" style="margin-top: 1rem;"></div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="action-container">
+                        <button type="button" id="startValidationBtn" class="btn btn-primary" disabled>
+                            ✅ Start Validation
+                        </button>
+                        <button type="button" id="downloadResultsBtn" class="btn btn-success" disabled>
+                            📊 Download Results
+                        </button>
+                        <button type="button" id="clearFilesBtn" class="btn btn-warning">
+                            🗑️ Clear Files
+                        </button>
+                    </div>
+
+                    <!-- Results Preview -->
+                    <div id="validationResults" class="preview-container" style="display: none;">
+                        <h4>📊 Validation Results</h4>
+                        <div id="resultsContent" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Navigation -->
+                <div class="section-navigation" style="margin-top: 2rem;">
+                    <button id="bottomHomeFromValidate" class="btn btn-secondary">🏠 Home</button>
+                    <button id="bottomGenerateFromValidate" class="btn btn-primary">📄 Generate Papers</button>
+                </div>
             </div>
         </section>
     </main>
 
-    <script>
-        // State management
-        let currentUser = null;
-        let generatedPaper = '';
-        let isLoggedIn = false;
-        let currentTab = 'generate';
-
-        // DOM Elements
-        const loginModal = document.getElementById('loginModal');
-        const registerModal = document.getElementById('registerModal');
-        const loginBtn = document.getElementById('loginBtn');
-        const registerBtn = document.getElementById('registerBtn');
-        const generatePaperBtn = document.getElementById('generatePaperBtn');
-        const validatePaperBtn = document.getElementById('validatePaperBtn');
-        const homeSection = document.getElementById('homeSection');
-        const paperGenerationSection = document.getElementById('paperGenerationSection');
-        const validationSection = document.getElementById('validationSection');
-        const loggedInTabs = document.getElementById('loggedInTabs');
-        const generateTab = document.getElementById('generateTab');
-        const validateTab = document.getElementById('validateTab');
-        const homeBtn = document.getElementById('homeBtn');
-        const loginFromHome = document.getElementById('loginFromHome');
-        const registerFromHome = document.getElementById('registerFromHome');
-
-        // File upload elements
-        const questionsFileUpload = document.getElementById('questionsFileUpload');
-        const questionsFile = document.getElementById('questionsFile');
-        const questionsFileName = document.getElementById('questionsFileName');
-        const questionPaperUpload = document.getElementById('questionPaperUpload');
-        const questionPaperFile = document.getElementById('questionPaperFile');
-        const questionPaperFileName = document.getElementById('questionPaperFileName');
-        const answerPaperUpload = document.getElementById('answerPaperUpload');
-        const answerPaperFile = document.getElementById('answerPaperFile');
-        const answerPaperFileName = document.getElementById('answerPaperFileName');
-
-        // Initialize
-        updateUIForLoginStatus();
-
-        // File upload handlers
-        questionsFileUpload.addEventListener('click', () => questionsFile.click());
-        questionsFile.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                questionsFileName.textContent = `Selected: ${e.target.files[0].name}`;
-                questionsFileName.style.color = '#28a745';
-            }
-        });
-
-        questionPaperUpload.addEventListener('click', () => questionPaperFile.click());
-        questionPaperFile.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                questionPaperFileName.textContent = `Selected: ${e.target.files[0].name}`;
-                questionPaperFileName.style.color = '#28a745';
-            }
-        });
-
-        answerPaperUpload.addEventListener('click', () => answerPaperFile.click());
-        answerPaperFile.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                answerPaperFileName.textContent = `Selected: ${e.target.files[0].name}`;
-                answerPaperFileName.style.color = '#28a745';
-            }
-        });
-
-        // Drag and drop for file uploads
-        [questionsFileUpload, questionPaperUpload, answerPaperUpload].forEach(upload => {
-            upload.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                upload.style.borderColor = '#0366d6';
-                upload.style.background = '#f8f9fa';
-            });
-
-            upload.addEventListener('dragleave', () => {
-                upload.style.borderColor = '#ddd';
-                upload.style.background = '';
-            });
-
-            upload.addEventListener('drop', (e) => {
-                e.preventDefault();
-                upload.style.borderColor = '#ddd';
-                upload.style.background = '';
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    const input = upload.querySelector('input[type="file"]');
-                    input.files = files;
-                    const event = new Event('change', { bubbles: true });
-                    input.dispatchEvent(event);
-                }
-            });
-        });
-
-        // Close modals
-        document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', () => {
-                loginModal.style.display = 'none';
-                registerModal.style.display = 'none';
-            });
-        });
-
-        window.addEventListener('click', (e) => {
-            if (e.target === loginModal) loginModal.style.display = 'none';
-            if (e.target === registerModal) registerModal.style.display = 'none';
-        });
-
-        // Home button
-        homeBtn.addEventListener('click', () => {
-            if (isLoggedIn) {
-                switchToTab('generate');
-            } else {
-                showHomePage();
-            }
-        });
-
-        // Tab switching
-        generateTab.addEventListener('click', () => switchToTab('generate'));
-        validateTab.addEventListener('click', () => switchToTab('validate'));
-
-        function switchToTab(tab) {
-            currentTab = tab;
-            
-            // Update tab buttons
-            generateTab.classList.toggle('active', tab === 'generate');
-            validateTab.classList.toggle('active', tab === 'validate');
-            
-            // Show/hide sections
-            paperGenerationSection.style.display = tab === 'generate' ? 'block' : 'none';
-            validationSection.style.display = tab === 'validate' ? 'block' : 'none';
-        }
-
-        // Show home page
-        function showHomePage() {
-            paperGenerationSection.style.display = 'none';
-            validationSection.style.display = 'none';
-            loggedInTabs.style.display = 'none';
-            homeSection.style.display = 'block';
-        }
-
-        // Open modals
-        function openLoginModal() {
-            loginModal.style.display = 'flex';
-        }
-
-        function openRegisterModal() {
-            registerModal.style.display = 'flex';
-        }
-
-        loginBtn.addEventListener('click', openLoginModal);
-        loginFromHome.addEventListener('click', openLoginModal);
-        registerBtn.addEventListener('click', openRegisterModal);
-        registerFromHome.addEventListener('click', openRegisterModal);
-
-        // Update UI based on login status
-        function updateUIForLoginStatus() {
-            if (isLoggedIn && currentUser) {
-                // User is logged in
-                loginBtn.textContent = `Logout (${currentUser.name})`;
-                registerBtn.style.display = 'none';
-                generatePaperBtn.disabled = false;
-                generatePaperBtn.classList.remove('btn-disabled');
-                generatePaperBtn.classList.add('btn-primary');
-                validatePaperBtn.disabled = false;
-                validatePaperBtn.classList.remove('btn-disabled');
-                validatePaperBtn.classList.add('btn-warning');
-                
-                // Show logged in interface
-                loggedInTabs.style.display = 'flex';
-                switchToTab('generate');
-                homeSection.style.display = 'none';
-            } else {
-                // User is not logged in
-                loginBtn.textContent = 'Login';
-                registerBtn.style.display = 'inline-block';
-                generatePaperBtn.disabled = true;
-                generatePaperBtn.classList.add('btn-disabled');
-                generatePaperBtn.classList.remove('btn-primary');
-                validatePaperBtn.disabled = true;
-                validatePaperBtn.classList.add('btn-disabled');
-                validatePaperBtn.classList.remove('btn-warning');
-                
-                // Show home page
-                showHomePage();
-            }
-        }
-
-        // Login form
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            
-            if (email && password) {
-                const users = JSON.parse(localStorage.getItem('questionGeneratorUsers') || '[]');
-                const user = users.find(u => u.email === email && u.password === password);
-                
-                if (user) {
-                    currentUser = { email: user.email, name: user.name };
-                    isLoggedIn = true;
-                    alert('Login successful!');
-                    loginModal.style.display = 'none';
-                    updateUIForLoginStatus();
-                    document.getElementById('loginForm').reset();
-                } else {
-                    alert('Invalid email or password! Please register first.');
-                }
-            }
-        });
-
-        // Registration form
-        document.getElementById('registerForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const name = document.getElementById('regName').value;
-            const email = document.getElementById('regEmail').value;
-            const password = document.getElementById('regPassword').value;
-            const confirmPassword = document.getElementById('regConfirmPassword').value;
-            
-            if (password !== confirmPassword) {
-                alert('Passwords do not match!');
-                return;
-            }
-            
-            if (name && email && password) {
-                const users = JSON.parse(localStorage.getItem('questionGeneratorUsers') || '[]');
-                
-                if (users.some(u => u.email === email)) {
-                    alert('User already exists! Please login.');
-                    return;
-                }
-                
-                users.push({ name, email, password });
-                localStorage.setItem('questionGeneratorUsers', JSON.stringify(users));
-                
-                currentUser = { email, name };
-                isLoggedIn = true;
-                alert('Registration successful! You are now logged in.');
-                registerModal.style.display = 'none';
-                updateUIForLoginStatus();
-                document.getElementById('registerForm').reset();
-            }
-        });
-
-        // Logout functionality
-        loginBtn.addEventListener('click', function() {
-            if (isLoggedIn) {
-                if (confirm('Are you sure you want to logout?')) {
-                    currentUser = null;
-                    isLoggedIn = false;
-                    updateUIForLoginStatus();
-                    alert('Logged out successfully!');
-                }
-            }
-        });
-
-        // Generate paper button in header
-        generatePaperBtn.addEventListener('click', () => {
-            if (!isLoggedIn) {
-                alert('Please login first!');
-                openLoginModal();
-                return;
-            }
-            switchToTab('generate');
-        });
-
-        // Validate paper button in header
-        validatePaperBtn.addEventListener('click', () => {
-            if (!isLoggedIn) {
-                alert('Please login first!');
-                openLoginModal();
-                return;
-            }
-            switchToTab('validate');
-        });
-
-        // Question generation logic
-        const sampleMCQOptions = [
-            (c)=>[`${c} is ...`, `Not ${c}`, `Related to ${c}`, `Unrelated option`],
-            (c)=>[`Definition of ${c}`, `Opposite of ${c}`, `Example of ${c}`, `Irrelevant`],
-            (c)=>[`Result of ${c}`, `Cause of ${c}`, `Property of ${c}`, `None of the above`]
-        ];
-
-        const bloomVerbs = {
-            remembering: ['Define', 'List', 'Recall', 'Identify'],
-            understanding: ['Explain', 'Describe', 'Discuss', 'Summarize'],
-            applying: ['Apply', 'Demonstrate', 'Calculate', 'Solve'],
-            analyzing: ['Analyze', 'Compare', 'Contrast', 'Differentiate'],
-            evaluating: ['Evaluate', 'Critique', 'Justify', 'Recommend'],
-            creating: ['Design', 'Create', 'Develop', 'Propose']
-        };
-
-        function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-        function generateQuestion(i, subject, keywords, difficulty, qtype, bloomLevel) {
-            const kw = keywords.length ? pick(keywords) : subject || "the topic";
-            const bloomVerb = pick(bloomVerbs[bloomLevel]);
-            const mark = qtype === 'mcq' ? 1 : qtype === 'short' ? 5 : 10;
-            
-            if (qtype === 'mcq') {
-                const opts = pick(sampleMCQOptions)(kw);
-                const correctIndex = Math.floor(Math.random() * 4);
-                return {
-                    text: `Q${i}. (MCQ, ${mark} mark) ${bloomVerb}: ${kw}`,
-                    choices: opts,
-                    answer: String.fromCharCode(65 + correctIndex),
-                    type: 'mcq'
-                };
-            }
-            if (qtype === 'short') {
-                return {
-                    text: `Q${i}. (Short, ${mark} marks) ${bloomVerb}: Describe ${kw} in context of ${subject}.`,
-                    answer: `Expected answer for ${kw}: ...`,
-                    type: 'short'
-                };
-            }
-            // essay
-            return {
-                text: `Q${i}. (Essay, ${mark} marks) ${bloomVerb}: Discuss ${kw} and its applications in ${subject}.`,
-                answer: `Essay should include: 1) Introduction to ${kw}, 2) Key concepts, 3) Applications, 4) Conclusion`,
-                type: 'essay'
-            };
-        }
-
-        function enhanceQuestionsWithFile(existingContent, subject, difficulty) {
-            // Simulate AI enhancement based on uploaded content
-            const lines = existingContent.split('\n').slice(0, 5);
-            const enhancedTopics = lines.join(', ') + ` [Enhanced for ${difficulty} level]`;
-            return enhancedTopics;
-        }
-
-        function renderPaper(title, questions, includeInstructions, timeLimit) {
-            const lines = [];
-            lines.push(title);
-            lines.push('='.repeat(title.length));
-            lines.push('');
-            lines.push(`Generated by: ${currentUser.name}`);
-            lines.push(`Date: ${new Date().toLocaleDateString()}`);
-            lines.push(`Time: ${new Date().toLocaleTimeString()}`);
-            lines.push('');
-            
-            if (includeInstructions === 'yes') {
-                lines.push('INSTRUCTIONS:');
-                lines.push('1. Read all questions carefully before answering.');
-                lines.push('2. Answer all questions in the space provided.');
-                lines.push('3. Time allowed: ' + timeLimit + ' minutes.');
-                lines.push('4. Use pen only.');
-                lines.push('5. Show all working for calculation questions.');
-                lines.push('');
-            }
-            
-            lines.push('QUESTIONS:');
-            lines.push('');
-            questions.forEach(q => {
-                lines.push(q.text);
-                if (q.choices) {
-                    q.choices.forEach((c, idx) => {
-                        lines.push(`  ${String.fromCharCode(65 + idx)}. ${c}`);
-                    });
-                }
-                lines.push('');
-            });
-            
-            lines.push('='.repeat(40));
-            lines.push('ANSWER KEY:');
-            lines.push('='.repeat(40));
-            questions.forEach((q, idx) => {
-                if (q.answer) lines.push(`Q${idx + 1}: ${q.answer}`);
-                else lines.push(`Q${idx + 1}: —`);
-            });
-            return lines.join('\n');
-        }
-
-        // Generate paper
-        document.getElementById('generate').addEventListener('click', () => {
-            if (!isLoggedIn) {
-                alert('Please login first!');
-                openLoginModal();
-                return;
-            }
-
-            generatePaper(false);
-        });
-
-        // Enhance and generate
-        document.getElementById('enhanceGenerate').addEventListener('click', () => {
-            if (!isLoggedIn) {
-                alert('Please login first!');
-                openLoginModal();
-                return;
-            }
-
-            if (questionsFile.files.length === 0) {
-                alert('Please upload a file first to enhance.');
-                return;
-            }
-
-            generatePaper(true);
-        });
-
-        function generatePaper(enhance) {
-            const subject = document.getElementById('subject').value.trim();
-            const topic = document.getElementById('topic').value.trim();
-            const difficulty = document.getElementById('difficulty').value;
-            const count = Math.max(1, Math.min(50, parseInt(document.getElementById('count').value || '10')));
-            const type = document.getElementById('type').value;
-            const bloomLevel = document.getElementById('bloomLevel').value;
-            const timeLimit = document.getElementById('timeLimit').value;
-            const language = document.getElementById('language').value;
-            const includeInstructions = document.getElementById('includeInstructions').value;
-
-            let finalKeywords = topic ? topic.split(',').map(s => s.trim()).filter(Boolean) : [];
-            
-            if (enhance && questionsFile.files.length > 0) {
-                const file = questionsFile.files[0];
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    try {
-                        const fileContent = e.target.result;
-                        const enhancedContent = enhanceQuestionsWithFile(fileContent, subject, difficulty);
-                        document.getElementById('topic').value = enhancedContent;
-                        finalKeywords = enhancedContent.split(',').map(s => s.trim()).filter(Boolean);
-                        continueGeneration();
-                    } catch (error) {
-                        alert('Error reading file. Please try again.');
-                        continueGeneration();
-                    }
-                };
-                
-                reader.onerror = function() {
-                    alert('Error reading file. Please try again.');
-                    continueGeneration();
-                };
-                
-                reader.readAsText(file);
-            } else {
-                continueGeneration();
-            }
-
-            function continueGeneration() {
-                const questions = [];
-                
-                for (let i = 1; i <= count; i++) {
-                    let qtype = type;
-                    if (type === 'mixed') {
-                        const r = Math.random();
-                        qtype = r < 0.5 ? 'mcq' : (r < 0.85 ? 'short' : 'essay');
-                    }
-                    questions.push(generateQuestion(i, subject || 'General', finalKeywords, difficulty, qtype, bloomLevel));
-                }
-
-                const title = `${subject || 'General'} - Question Paper (${count} Q) - ${difficulty} - ${bloomLevel}`;
-                generatedPaper = renderPaper(title, questions, includeInstructions, timeLimit);
-                document.getElementById('output').textContent = generatedPaper;
-                
-                // Scroll to output
-                document.getElementById('output').scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-
-        // Validate answers
-        document.getElementById('validate').addEventListener('click', () => {
-            if (!isLoggedIn) {
-                alert('Please login first!');
-                openLoginModal();
-                return;
-            }
-
-            if (questionPaperFile.files.length === 0 || answerPaperFile.files.length === 0) {
-                alert('Please upload both question paper and answer paper.');
-                return;
-            }
-
-            const validationMode = document.getElementById('validationMode').value;
-            
-            // Simulate validation (in real app, this would use AI/ML)
-            const totalQuestions = Math.floor(Math.random() * 20) + 5;
-            const correctAnswers = Math.floor(totalQuestions * (validationMode === 'strict' ? 0.6 : validationMode === 'lenient' ? 0.8 : 0.7));
-            const incorrectAnswers = totalQuestions - correctAnswers;
-            const scorePercentage = Math.round((correctAnswers / totalQuestions) * 100);
-
-            // Update validation results
-            document.getElementById('totalQuestions').textContent = totalQuestions;
-            document.getElementById('correctAnswers').textContent = correctAnswers;
-            document.getElementById('incorrectAnswers').textContent = incorrectAnswers;
-            document.getElementById('scorePercentage').textContent = `${scorePercentage}%`;
-
-            // Generate detailed results
-            const detailedResults = [];
-            for (let i = 1; i <= totalQuestions; i++) {
-                const isCorrect = i <= correctAnswers;
-                detailedResults.push(`
-                    <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: ${isCorrect ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">
-                        <strong>Q${i}:</strong> ${isCorrect ? '✅ Correct' : '❌ Incorrect'}
-                        ${!isCorrect ? `<br><small>Expected: Answer for question ${i}. Got: Partial answer.</small>` : ''}
-                    </div>
-                `);
-            }
-
-            document.getElementById('detailedResults').innerHTML = detailedResults.join('');
-            document.getElementById('validationResults').style.display = 'block';
-
-            // Show validation output
-            const validationOutput = `
-VALIDATION REPORT
-=================
-Generated: ${new Date().toLocaleString()}
-Question Paper: ${questionPaperFile.files[0].name}
-Answer Paper: ${answerPaperFile.files[0].name}
-Validation Mode: ${validationMode}
-
-SUMMARY:
---------
-Total Questions: ${totalQuestions}
-Correct Answers: ${correctAnswers}
-Incorrect Answers: ${incorrectAnswers}
-Score: ${scorePercentage}%
-
-RECOMMENDATIONS:
----------------
-${scorePercentage >= 80 ? 'Excellent work! Strong understanding of the material.' : 
-  scorePercentage >= 60 ? 'Good effort. Focus on reviewing weak areas.' : 
-  'Needs improvement. Review fundamental concepts and practice more.'}
-
-Detailed question-by-question results are displayed below.
-            `;
-
-            document.getElementById('validationOutput').textContent = validationOutput;
-            
-            // Scroll to results
-            document.getElementById('validationResults').scrollIntoView({ behavior: 'smooth' });
-        });
-
-        // Download paper
-        document.getElementById('download').addEventListener('click', () => {
-            if (!isLoggedIn) {
-                alert('Please login first!');
-                openLoginModal();
-                return;
-            }
-
-            if (!generatedPaper) return alert('Generate a paper first.');
-            
-            const blob = new Blob([generatedPaper], {type: 'text/plain;charset=utf-8'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `question-paper-${Date.now()}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-        });
-
-        // Print paper
-        document.getElementById('print').addEventListener('click', () => {
-            if (!isLoggedIn) {
-                alert('Please login first!');
-                openLoginModal();
-                return;
-            }
-
-            if (!generatedPaper) return alert('Generate a paper first.');
-            
-            const w = window.open('', '_blank', 'width=900,height=700');
-            w.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Question Paper</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 2rem; }
-                        pre { white-space: pre-wrap; font-size: 14px; }
-                        @media print {
-                            body { margin: 0; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <pre>${generatedPaper.replace(/</g, '&lt;')}</pre>
-                    <script>
-                        setTimeout(() => window.print(), 500);
-                    <\/script>
-                </body>
-                </html>
-            `);
-            w.document.close();
-        });
-
-        // Clear output
-        document.getElementById('clear').addEventListener('click', () => {
-            document.getElementById('output').textContent = '';
-            generatedPaper = '';
-            document.getElementById('subject').value = '';
-            document.getElementById('topic').value = '';
-            document.getElementById('count').value = '10';
-            questionsFile.value = '';
-            questionsFileName.textContent = '';
-        });
-
-        // Clear validation
-        document.getElementById('clearValidation').addEventListener('click', () => {
-            document.getElementById('validationOutput').textContent = '';
-            document.getElementById('validationResults').style.display = 'none';
-            questionPaperFile.value = '';
-            answerPaperFile.value = '';
-            questionPaperFileName.textContent = '';
-            answerPaperFileName.textContent = '';
-        });
-    </script>
+    <script src="app.js"></script>
 </body>
-</html> 
+</html>

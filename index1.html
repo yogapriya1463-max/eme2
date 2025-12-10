@@ -1,0 +1,1780 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Automated AI Question Paper Generator</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            color: #111;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        /* Header & Navigation */
+        header {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #0366d6;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #0366d6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
+
+        .btn-disabled {
+            background: #cccccc;
+            color: #666666;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Main Content Sections */
+        .section {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Home Section */
+        .home-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            color: #0366d6;
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* Login Required Section */
+        .login-required {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-top: 2rem;
+        }
+
+        /* Welcome Section */
+        .welcome-section {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 3rem;
+            flex-wrap: wrap;
+        }
+
+        /* Section Navigation */
+        .section-navigation {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        /* Form Container */
+        .form-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+            font-size: 0.95rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #0366d6;
+            box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+        }
+
+        .form-control.error {
+            border-color: #dc3545;
+        }
+
+        .form-control.success {
+            border-color: #28a745;
+        }
+
+        /* Checkbox Group */
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* File Upload */
+        .file-upload {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+
+        .file-upload:hover {
+            border-color: #0366d6;
+            background: #f0f7ff;
+        }
+
+        .file-upload i {
+            font-size: 2rem;
+            color: #0366d6;
+            margin-bottom: 1rem;
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        /* Preview Container */
+        .preview-container {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .preview-container h4 {
+            color: #0366d6;
+            margin-bottom: 1rem;
+        }
+
+        /* Action Buttons Container */
+        .action-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #e9ecef;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .modal-header h2 {
+            color: #0366d6;
+            font-size: 1.5rem;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            transition: color 0.3s;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close-modal:hover {
+            background: #f8f9fa;
+            color: #0366d6;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+            display: none;
+        }
+
+        .password-strength {
+            margin-top: 0.5rem;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .strength-bar {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .strength-weak {
+            background: #dc3545;
+            width: 25%;
+        }
+
+        .strength-fair {
+            background: #ffc107;
+            width: 50%;
+        }
+
+        .strength-good {
+            background: #17a2b8;
+            width: 75%;
+        }
+
+        .strength-strong {
+            background: #28a745;
+            width: 100%;
+        }
+
+        .modal-footer {
+            margin-top: 2rem;
+            text-align: center;
+            padding-top: 1rem;
+            border-top: 1px solid #e9ecef;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .modal-footer a {
+            color: #0366d6;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .modal-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 1001;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast-success {
+            border-left: 4px solid #28a745;
+        }
+
+        .toast-error {
+            border-left: 4px solid #dc3545;
+        }
+
+        .toast-info {
+            border-left: 4px solid #17a2b8;
+        }
+
+        /* Loading State */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #0366d6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Form Switch */
+        .form-switch {
+            text-align: center;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .form-switch a {
+            color: #0366d6;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .form-switch a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .nav-buttons {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .modal-content {
+                padding: 1.5rem;
+                margin: 1rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .action-buttons .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .section-navigation {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .section-navigation .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .action-container {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+
+            .action-container .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="logo" id="homeBtn">
+            📚 AI Question Generator
+        </div>
+        <div class="nav-buttons">
+            <!-- Home button added in header -->
+            <button id="headerHomeBtn" class="btn btn-secondary" style="display: none;">
+                🏠 Home
+            </button>
+            <button id="loginBtn" class="btn btn-primary">
+                🔐 Login
+            </button>
+            <button id="registerBtn" class="btn btn-secondary">
+                📝 Register
+            </button>
+        </div>
+    </header>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <span id="toastIcon">ℹ️</span>
+        <span id="toastMessage">Notification message</span>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔐 Login to Your Account</h2>
+                <button class="close-modal" data-modal="loginModal">&times;</button>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email Address</label>
+                    <input type="email" id="loginEmail" class="form-control" 
+                           placeholder="Enter your email" required>
+                    <div class="error-message" id="loginEmailError"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" class="form-control" 
+                           placeholder="Enter your password" required>
+                    <div class="error-message" id="loginPasswordError"></div>
+                </div>
+
+                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="margin-bottom: 0;">
+                        <input type="checkbox" id="rememberMe" style="margin-right: 0.5rem;">
+                        Remember me
+                    </label>
+                    <a href="#" id="forgotPassword" style="font-size: 0.9rem;">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;" id="loginSubmitBtn">
+                    <span id="loginBtnText">Login</span>
+                    <span id="loginLoading" class="loading" style="display: none;"></span>
+                </button>
+            </form>
+
+            <div class="form-switch">
+                Don't have an account? <a id="switchToRegister">Register here</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registration Modal -->
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📝 Create New Account</h2>
+                <button class="close-modal" data-modal="registerModal">&times;</button>
+            </div>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="regName">Full Name</label>
+                    <input type="text" id="regName" class="form-control" 
+                           placeholder="Enter your full name" required>
+                    <div class="error-message" id="regNameError"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="regEmail">Email Address</label>
+                    <input type="email" id="regEmail" class="form-control" 
+                           placeholder="Enter your email" required>
+                    <div class="error-message" id="regEmailError"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="regPassword">Password</label>
+                    <input type="password" id="regPassword" class="form-control" 
+                           placeholder="Create a password (min. 6 characters)" required
+                           minlength="6">
+                    <div class="password-strength">
+                        <div class="strength-bar" id="passwordStrength"></div>
+                    </div>
+                    <div class="error-message" id="regPasswordError"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="regConfirmPassword">Confirm Password</label>
+                    <input type="password" id="regConfirmPassword" class="form-control" 
+                           placeholder="Confirm your password" required>
+                    <div class="error-message" id="regConfirmPasswordError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: flex-start; font-size: 0.9rem;">
+                        <input type="checkbox" id="agreeTerms" style="margin-right: 0.5rem; margin-top: 0.2rem;" required>
+                        I agree to the <a href="#" style="color: #0366d6;">Terms of Service</a> and <a href="#" style="color: #0366d6;">Privacy Policy</a>
+                    </label>
+                    <div class="error-message" id="termsError"></div>
+                </div>
+
+                <button type="submit" class="btn btn-success" style="width: 100%;" id="registerSubmitBtn">
+                    <span id="registerBtnText">Create Account</span>
+                    <span id="registerLoading" class="loading" style="display: none;"></span>
+                </button>
+            </form>
+
+            <div class="form-switch">
+                Already have an account? <a id="switchToLogin">Login here</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔑 Forgot Password</h2>
+                <button class="close-modal" data-modal="forgotPasswordModal">&times;</button>
+            </div>
+            <form id="forgotPasswordForm">
+                <div class="form-group">
+                    <label for="forgotEmail">Email Address</label>
+                    <input type="email" id="forgotEmail" class="form-control" 
+                           placeholder="Enter your email" required>
+                    <div class="error-message" id="forgotEmailError"></div>
+                    <div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
+                        Enter your email address and we'll send you a password reset link.
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;" id="forgotSubmitBtn">
+                    <span id="forgotBtnText">Send Reset Link</span>
+                    <span id="forgotLoading" class="loading" style="display: none;"></span>
+                </button>
+            </form>
+
+            <div class="form-switch">
+                Remember your password? <a id="switchToLoginFromForgot">Login here</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Home Section -->
+        <section id="homeSection" class="section active">
+            <div class="home-container">
+                <div class="hero">
+                    <h1>Automated AI Question Paper Generator</h1>
+                    <p>Create professional question papers in seconds. Customize subjects, topics, difficulty levels, and question types to generate perfect assessments.</p>
+                </div>
+
+                <div id="loginRequired" class="login-required">
+                    <h2>🔒 Login Required</h2>
+                    <p>Please register and login to access the question paper generator and answer validation tools.</p>
+                    <div class="action-buttons" style="margin-top: 2rem;">
+                        <button id="loginFromHome" class="btn btn-primary">🔐 Login</button>
+                        <button id="registerFromHome" class="btn btn-success">📝 Register</button>
+                    </div>
+                </div>
+
+                <div id="welcomeSection" class="login-required" style="display: none;">
+                    <h2>Welcome back! 👋</h2>
+                    <p>You're now logged in. Access all features to create and manage question papers.</p>
+                    <div class="action-buttons" style="margin-top: 2rem;">
+                        <button id="startGenerating" class="btn btn-primary">📄 Start Generating Papers</button>
+                        <button id="startValidating" class="btn btn-success">✓ Validate Answer Papers</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Generate Paper Section -->
+        <section id="generateSection" class="section">
+            <div class="home-container">
+                <div class="hero">
+                    <h1>Generate Question Paper</h1>
+                    <p>Configure your question paper settings and let AI generate a perfect assessment.</p>
+                    
+                    <!-- Section Navigation for Generate Page -->
+                    <div class="section-navigation">
+                        <button id="homeFromGenerate" class="btn btn-secondary">🏠 Home</button>
+                        <button id="validateFromGenerate" class="btn btn-success">✓ Validate Answers</button>
+                    </div>
+                </div>
+                
+                <!-- Content for Generate Page -->
+                <div class="form-container">
+                    <h3 style="color: #0366d6; margin-bottom: 1.5rem;">📋 Question Paper Configuration</h3>
+                    
+                    <!-- Paper Details Form -->
+                    <form id="questionPaperForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="paperTitle">📝 Paper Title</label>
+                                <input type="text" id="paperTitle" class="form-control" 
+                                       placeholder="Enter paper title (e.g., Final Exam 2024)" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="paperSubject">📚 Subject</label>
+                                <select id="paperSubject" class="form-control" required>
+                                    <option value="">Select Subject</option>
+                                    <option value="mathematics">Mathematics</option>
+                                    <option value="physics">Physics</option>
+                                    <option value="chemistry">Chemistry</option>
+                                    <option value="biology">Biology</option>
+                                    <option value="english">English</option>
+                                    <option value="history">History</option>
+                                    <option value="geography">Geography</option>
+                                    <option value="computer_science">Computer Science</option>
+                                    <option value="economics">Economics</option>
+                                    <option value="business_studies">Business Studies</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="paperDate">📅 Exam Date</label>
+                                <input type="date" id="paperDate" class="form-control" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="paperTime">⏰ Exam Duration (minutes)</label>
+                                <input type="number" id="paperTime" class="form-control" 
+                                       placeholder="Enter duration in minutes" min="30" max="300" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="totalMarks">🎯 Total Marks</label>
+                                <input type="number" id="totalMarks" class="form-control" 
+                                       placeholder="Enter total marks" min="10" max="200" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>❓ Question Types</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_mcq" value="mcq" checked>
+                                    <label for="qtype_mcq">Multiple Choice (MCQ)</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_oneword" value="oneword">
+                                    <label for="qtype_oneword">One Word Answer</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_short" value="short">
+                                    <label for="qtype_short">Short Answer</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_long" value="long">
+                                    <label for="qtype_long">Long Answer</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_essay" value="essay">
+                                    <label for="qtype_essay">Essay Type</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="qtype_truefalse" value="truefalse">
+                                    <label for="qtype_truefalse">True/False</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="difficultyLevel">📊 Difficulty Level</label>
+                            <select id="difficultyLevel" class="form-control" required>
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                                <option value="mixed">Mixed Difficulty</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="paperTopics">📖 Topics (comma separated)</label>
+                            <textarea id="paperTopics" class="form-control" 
+                                      rows="3" 
+                                      placeholder="Enter topics, separated by commas (e.g., Algebra, Geometry, Calculus)"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="additionalInstructions">📝 Additional Instructions</label>
+                            <textarea id="additionalInstructions" class="form-control" 
+                                      rows="3" 
+                                      placeholder="Any special instructions for the question paper"></textarea>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="action-container">
+                            <div class="file-upload" id="uploadTemplateBtn">
+                                <div style="pointer-events: none;">
+                                    <div>📤</div>
+                                    <h4>Upload Template</h4>
+                                    <p>Upload existing question paper template (Optional)</p>
+                                    <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX</p>
+                                </div>
+                                <input type="file" id="templateUpload" accept=".pdf,.doc,.docx">
+                            </div>
+
+                            <div style="display: flex; gap: 1rem;">
+                                <button type="button" id="generatePaperBtn" class="btn btn-primary">
+                                    🚀 Generate Paper
+                                </button>
+                                <button type="button" id="downloadPaperBtn" class="btn btn-success" disabled>
+                                    ⬇️ Download PDF
+                                </button>
+                                <button type="button" id="resetFormBtn" class="btn btn-warning">
+                                    🔄 Reset Form
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Preview Section -->
+                    <div id="paperPreview" class="preview-container" style="display: none;">
+                        <h4>📄 Generated Paper Preview</h4>
+                        <div id="previewContent" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
+                            <!-- Preview content will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Navigation -->
+                <div class="section-navigation" style="margin-top: 2rem;">
+                    <button id="bottomHomeFromGenerate" class="btn btn-secondary">🏠 Home</button>
+                    <button id="bottomValidateFromGenerate" class="btn btn-success">✓ Validate Answers</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Validate Answers Section -->
+        <section id="validateSection" class="section">
+            <div class="home-container">
+                <div class="hero">
+                    <h1>Validate Answer Papers</h1>
+                    <p>Upload answer sheets and let AI validate and grade them automatically.</p>
+                    
+                    <!-- Section Navigation for Validate Page -->
+                    <div class="section-navigation">
+                        <button id="homeFromValidate" class="btn btn-secondary">🏠 Home</button>
+                        <button id="generateFromValidate" class="btn btn-primary">📄 Generate Papers</button>
+                    </div>
+                </div>
+                
+                <!-- Content for Validate Page -->
+                <div class="form-container">
+                    <h3 style="color: #0366d6; margin-bottom: 1.5rem;">✓ Answer Paper Validation</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="answerPaperTitle">📝 Answer Paper Title</label>
+                            <input type="text" id="answerPaperTitle" class="form-control" 
+                                   placeholder="Enter answer paper title" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="studentCount">👥 Number of Students</label>
+                            <input type="number" id="studentCount" class="form-control" 
+                                   placeholder="Number of answer sheets" min="1" max="100" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>📤 Upload Answer Sheets</label>
+                        <div class="file-upload" id="uploadAnswersBtn">
+                            <div style="pointer-events: none;">
+                                <div>📁</div>
+                                <h4>Upload Answer Sheets</h4>
+                                <p>Click to upload answer sheets for validation</p>
+                                <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, Images</p>
+                            </div>
+                            <input type="file" id="answersUpload" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple>
+                        </div>
+                        <div id="fileList" style="margin-top: 1rem;"></div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="action-container">
+                        <button type="button" id="startValidationBtn" class="btn btn-primary" disabled>
+                            ✅ Start Validation
+                        </button>
+                        <button type="button" id="downloadResultsBtn" class="btn btn-success" disabled>
+                            📊 Download Results
+                        </button>
+                        <button type="button" id="clearFilesBtn" class="btn btn-warning">
+                            🗑️ Clear Files
+                        </button>
+                    </div>
+
+                    <!-- Results Preview -->
+                    <div id="validationResults" class="preview-container" style="display: none;">
+                        <h4>📊 Validation Results</h4>
+                        <div id="resultsContent" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Navigation -->
+                <div class="section-navigation" style="margin-top: 2rem;">
+                    <button id="bottomHomeFromValidate" class="btn btn-secondary">🏠 Home</button>
+                    <button id="bottomGenerateFromValidate" class="btn btn-primary">📄 Generate Papers</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // State management
+        let currentUser = null;
+        let isLoggedIn = false;
+        let currentSection = 'home';
+
+        // DOM Elements
+        const sections = {
+            home: document.getElementById('homeSection'),
+            generate: document.getElementById('generateSection'),
+            validate: document.getElementById('validateSection')
+        };
+
+        const loginModal = document.getElementById('loginModal');
+        const registerModal = document.getElementById('registerModal');
+        const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        const homeBtn = document.getElementById('homeBtn');
+        const headerHomeBtn = document.getElementById('headerHomeBtn');
+
+        // Generate Paper Elements
+        const generatePaperBtn = document.getElementById('generatePaperBtn');
+        const downloadPaperBtn = document.getElementById('downloadPaperBtn');
+        const resetFormBtn = document.getElementById('resetFormBtn');
+        const templateUpload = document.getElementById('templateUpload');
+        const uploadTemplateBtn = document.getElementById('uploadTemplateBtn');
+        const paperPreview = document.getElementById('paperPreview');
+        const previewContent = document.getElementById('previewContent');
+
+        // Validate Answers Elements
+        const startValidationBtn = document.getElementById('startValidationBtn');
+        const downloadResultsBtn = document.getElementById('downloadResultsBtn');
+        const clearFilesBtn = document.getElementById('clearFilesBtn');
+        const answersUpload = document.getElementById('answersUpload');
+        const uploadAnswersBtn = document.getElementById('uploadAnswersBtn');
+        const fileList = document.getElementById('fileList');
+        const validationResults = document.getElementById('validationResults');
+        const resultsContent = document.getElementById('resultsContent');
+
+        // Toast system
+        function showToast(message, type = 'info', duration = 3000) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            // Set icon based on type
+            const icons = {
+                'success': '✅',
+                'error': '❌',
+                'info': 'ℹ️',
+                'warning': '⚠️'
+            };
+            
+            document.getElementById('toastIcon').textContent = icons[type] || 'ℹ️';
+            toastMessage.textContent = message;
+            toast.className = `toast toast-${type}`;
+            
+            // Show toast
+            toast.classList.add('show');
+            
+            // Hide after duration
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        // Switch section
+        function switchSection(sectionName) {
+            // Hide all sections
+            Object.values(sections).forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Show target section
+            if (sections[sectionName]) {
+                sections[sectionName].classList.add('active');
+                currentSection = sectionName;
+            }
+            
+            // Update header Home button visibility
+            updateHeaderHomeButton();
+        }
+
+        // Update header Home button visibility
+        function updateHeaderHomeButton() {
+            if (currentSection === 'home') {
+                headerHomeBtn.style.display = 'none';
+            } else {
+                headerHomeBtn.style.display = 'flex';
+            }
+        }
+
+        // Clear error messages
+        function clearErrors() {
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.style.display = 'none';
+                el.textContent = '';
+            });
+            document.querySelectorAll('.form-control').forEach(el => {
+                el.classList.remove('error', 'success');
+            });
+        }
+
+        // Validate email
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        // Open modal function
+        function openModal(modalId) {
+            clearErrors();
+            document.getElementById(modalId).style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Close modal function
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            document.body.style.overflow = 'auto';
+            clearErrors();
+        }
+
+        // Switch between forms
+        function switchToLogin() {
+            closeModal('registerModal');
+            closeModal('forgotPasswordModal');
+            setTimeout(() => openModal('loginModal'), 300);
+        }
+
+        function switchToRegister() {
+            closeModal('loginModal');
+            closeModal('forgotPasswordModal');
+            setTimeout(() => openModal('registerModal'), 300);
+        }
+
+        function switchToForgotPassword() {
+            closeModal('loginModal');
+            closeModal('registerModal');
+            setTimeout(() => openModal('forgotPasswordModal'), 300);
+        }
+
+        // Generate Paper Functions
+        function generatePaperPreview() {
+            const title = document.getElementById('paperTitle').value || 'Sample Question Paper';
+            const subject = document.getElementById('paperSubject').value || 'General';
+            const date = document.getElementById('paperDate').value || new Date().toISOString().split('T')[0];
+            const time = document.getElementById('paperTime').value || '180';
+            const marks = document.getElementById('totalMarks').value || '100';
+            const difficulty = document.getElementById('difficultyLevel').value || 'medium';
+            const topics = document.getElementById('paperTopics').value || 'General Topics';
+            
+            // Get selected question types
+            const questionTypes = [];
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                questionTypes.push(cb.nextElementSibling.textContent);
+            });
+
+            const previewHTML = `
+                <h5 style="color: #0366d6; margin-bottom: 1rem;">${title}</h5>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div>
+                        <strong>Subject:</strong> ${subject}
+                    </div>
+                    <div>
+                        <strong>Date:</strong> ${date}
+                    </div>
+                    <div>
+                        <strong>Duration:</strong> ${time} minutes
+                    </div>
+                    <div>
+                        <strong>Total Marks:</strong> ${marks}
+                    </div>
+                    <div>
+                        <strong>Difficulty:</strong> ${difficulty}
+                    </div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <strong>Topics Covered:</strong> ${topics}
+                </div>
+                <div style="margin-bottom: 1.5rem;">
+                    <strong>Question Types:</strong> ${questionTypes.join(', ')}
+                </div>
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; border-left: 4px solid #28a745;">
+                    <strong>Sample Questions:</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li>What is the capital of France? (One Word)</li>
+                        <li>Explain the theory of relativity. (Essay)</li>
+                        <li>Solve: 2x + 5 = 15 (Short Answer)</li>
+                        <li>Which planet is known as the Red Planet? (MCQ)</li>
+                    </ul>
+                </div>
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #dee2e6; font-size: 0.9rem; color: #666;">
+                    <em>This is a preview of the generated question paper. The final paper will contain ${marks} marks worth of questions.</em>
+                </div>
+            `;
+
+            previewContent.innerHTML = previewHTML;
+            paperPreview.style.display = 'block';
+            downloadPaperBtn.disabled = false;
+            
+            // Scroll to preview
+            paperPreview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            
+            showToast('Question paper generated successfully!', 'success');
+        }
+
+        function downloadGeneratedPaper() {
+            showToast('Downloading question paper as PDF...', 'info');
+            
+            // Simulate download delay
+            setTimeout(() => {
+                showToast('Question paper downloaded successfully!', 'success');
+            }, 1500);
+        }
+
+        function resetQuestionForm() {
+            document.getElementById('questionPaperForm').reset();
+            paperPreview.style.display = 'none';
+            downloadPaperBtn.disabled = true;
+            showToast('Form has been reset', 'info');
+        }
+
+        // Validate Answers Functions
+        let uploadedFiles = [];
+
+        function handleFileUpload(event) {
+            const files = Array.from(event.target.files);
+            uploadedFiles = [...uploadedFiles, ...files];
+            
+            updateFileList();
+            
+            if (uploadedFiles.length > 0) {
+                startValidationBtn.disabled = false;
+                showToast(`${files.length} file(s) uploaded successfully`, 'success');
+            }
+        }
+
+        function updateFileList() {
+            fileList.innerHTML = '';
+            
+            if (uploadedFiles.length === 0) {
+                fileList.innerHTML = '<p style="color: #666; font-style: italic;">No files uploaded yet</p>';
+                return;
+            }
+            
+            const list = document.createElement('div');
+            list.style.display = 'flex';
+            list.style.flexDirection = 'column';
+            list.style.gap = '0.5rem';
+            
+            uploadedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.style.display = 'flex';
+                fileItem.style.justifyContent = 'space-between';
+                fileItem.style.alignItems = 'center';
+                fileItem.style.padding = '0.75rem';
+                fileItem.style.background = '#f8f9fa';
+                fileItem.style.borderRadius = '6px';
+                fileItem.style.border = '1px solid #dee2e6';
+                
+                const fileInfo = document.createElement('div');
+                fileInfo.innerHTML = `
+                    <div style="font-weight: 600;">${file.name}</div>
+                    <div style="font-size: 0.85rem; color: #666;">${(file.size / 1024).toFixed(2)} KB</div>
+                `;
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.innerHTML = '🗑️';
+                removeBtn.style.background = 'none';
+                removeBtn.style.border = 'none';
+                removeBtn.style.cursor = 'pointer';
+                removeBtn.style.fontSize = '1rem';
+                removeBtn.style.color = '#dc3545';
+                removeBtn.style.padding = '0.5rem';
+                removeBtn.style.borderRadius = '4px';
+                removeBtn.style.transition = 'background 0.3s';
+                
+                removeBtn.onmouseover = () => {
+                    removeBtn.style.background = '#f8d7da';
+                };
+                removeBtn.onmouseout = () => {
+                    removeBtn.style.background = 'none';
+                };
+                
+                removeBtn.onclick = () => {
+                    uploadedFiles.splice(index, 1);
+                    updateFileList();
+                    showToast('File removed', 'info');
+                };
+                
+                fileItem.appendChild(fileInfo);
+                fileItem.appendChild(removeBtn);
+                list.appendChild(fileItem);
+            });
+            
+            fileList.appendChild(list);
+        }
+
+        function startValidation() {
+            if (uploadedFiles.length === 0) {
+                showToast('Please upload answer sheets first', 'error');
+                return;
+            }
+            
+            showToast('Validating answer sheets...', 'info');
+            
+            // Simulate validation delay
+            setTimeout(() => {
+                const resultsHTML = `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                        <div style="background: #d4edda; padding: 1rem; border-radius: 6px; border-left: 4px solid #28a745;">
+                            <div style="font-size: 0.9rem; color: #666;">Total Papers</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #155724;">${uploadedFiles.length}</div>
+                        </div>
+                        <div style="background: #d1ecf1; padding: 1rem; border-radius: 6px; border-left: 4px solid #17a2b8;">
+                            <div style="font-size: 0.9rem; color: #666;">Average Score</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #0c5460;">78.5%</div>
+                        </div>
+                        <div style="background: #fff3cd; padding: 1rem; border-radius: 6px; border-left: 4px solid #ffc107;">
+                            <div style="font-size: 0.9rem; color: #666;">Highest Score</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #856404;">92%</div>
+                        </div>
+                        <div style="background: #f8d7da; padding: 1rem; border-radius: 6px; border-left: 4px solid #dc3545;">
+                            <div style="font-size: 0.9rem; color: #666;">Lowest Score</div>
+                            <div style="font-size: 1.5rem; font-weight: bold; color: #721c24;">65%</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1.5rem;">
+                        <strong>Validation Summary:</strong>
+                        <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                            <li>All answer sheets have been processed successfully</li>
+                            <li>AI detected handwriting with 95% accuracy</li>
+                            <li>Answers were graded based on the question paper</li>
+                            <li>Detailed reports are available for each student</li>
+                        </ul>
+                    </div>
+                    <div style="margin-top: 1.5rem; padding: 1rem; background: #e9ecef; border-radius: 6px;">
+                        <strong>Next Steps:</strong>
+                        <p style="margin-top: 0.5rem; margin-bottom: 0;">Download the complete results report for detailed analysis of each student's performance.</p>
+                    </div>
+                `;
+                
+                resultsContent.innerHTML = resultsHTML;
+                validationResults.style.display = 'block';
+                downloadResultsBtn.disabled = false;
+                
+                showToast('Validation completed successfully!', 'success');
+            }, 2000);
+        }
+
+        function downloadValidationResults() {
+            showToast('Downloading validation results...', 'info');
+            
+            // Simulate download delay
+            setTimeout(() => {
+                showToast('Results downloaded successfully!', 'success');
+            }, 1500);
+        }
+
+        function clearAllFiles() {
+            uploadedFiles = [];
+            updateFileList();
+            validationResults.style.display = 'none';
+            downloadResultsBtn.disabled = true;
+            startValidationBtn.disabled = true;
+            showToast('All files cleared', 'info');
+        }
+
+        // Initialize
+        function init() {
+            // Check if user is already logged in
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                isLoggedIn = true;
+                updateUIForLoginStatus();
+            }
+
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Always start on home page
+            switchSection('home');
+            
+            // Update header Home button
+            updateHeaderHomeButton();
+            
+            // Set default date to today
+            document.getElementById('paperDate').valueAsDate = new Date();
+        }
+
+        function setupEventListeners() {
+            // Navigation buttons
+            homeBtn.addEventListener('click', () => switchSection('home'));
+            headerHomeBtn.addEventListener('click', () => switchSection('home'));
+            
+            // Modal open/close buttons
+            loginBtn.addEventListener('click', () => {
+                if (isLoggedIn) {
+                    logout();
+                } else {
+                    openModal('loginModal');
+                }
+            });
+            
+            registerBtn.addEventListener('click', () => openModal('registerModal'));
+            
+            // Home page buttons
+            document.getElementById('loginFromHome').addEventListener('click', () => openModal('loginModal'));
+            document.getElementById('registerFromHome').addEventListener('click', () => openModal('registerModal'));
+            
+            // Welcome section buttons
+            if (document.getElementById('startGenerating')) {
+                document.getElementById('startGenerating').addEventListener('click', () => {
+                    switchSection('generate');
+                });
+            }
+            
+            if (document.getElementById('startValidating')) {
+                document.getElementById('startValidating').addEventListener('click', () => {
+                    switchSection('validate');
+                });
+            }
+            
+            // Generate section navigation buttons
+            document.getElementById('homeFromGenerate').addEventListener('click', () => switchSection('home'));
+            document.getElementById('validateFromGenerate').addEventListener('click', () => switchSection('validate'));
+            document.getElementById('bottomHomeFromGenerate').addEventListener('click', () => switchSection('home'));
+            document.getElementById('bottomValidateFromGenerate').addEventListener('click', () => switchSection('validate'));
+            
+            // Validate section navigation buttons
+            document.getElementById('homeFromValidate').addEventListener('click', () => switchSection('home'));
+            document.getElementById('generateFromValidate').addEventListener('click', () => switchSection('generate'));
+            document.getElementById('bottomHomeFromValidate').addEventListener('click', () => switchSection('home'));
+            document.getElementById('bottomGenerateFromValidate').addEventListener('click', () => switchSection('generate'));
+
+            // Generate Paper functionality
+            generatePaperBtn.addEventListener('click', generatePaperPreview);
+            downloadPaperBtn.addEventListener('click', downloadGeneratedPaper);
+            resetFormBtn.addEventListener('click', resetQuestionForm);
+            uploadTemplateBtn.addEventListener('click', () => templateUpload.click());
+            templateUpload.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    showToast('Template uploaded successfully!', 'success');
+                }
+            });
+
+            // Validate Answers functionality
+            startValidationBtn.addEventListener('click', startValidation);
+            downloadResultsBtn.addEventListener('click', downloadValidationResults);
+            clearFilesBtn.addEventListener('click', clearAllFiles);
+            uploadAnswersBtn.addEventListener('click', () => answersUpload.click());
+            answersUpload.addEventListener('change', handleFileUpload);
+
+            // Close modal buttons
+            document.querySelectorAll('.close-modal').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const modalId = btn.getAttribute('data-modal');
+                    closeModal(modalId);
+                });
+            });
+
+            // Close modal when clicking outside
+            window.addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal')) {
+                    closeModal(e.target.id);
+                }
+            });
+
+            // Switch between forms
+            document.getElementById('switchToRegister').addEventListener('click', switchToRegister);
+            document.getElementById('switchToLogin').addEventListener('click', switchToLogin);
+            document.getElementById('switchToLoginFromForgot').addEventListener('click', switchToLogin);
+            document.getElementById('forgotPassword').addEventListener('click', switchToForgotPassword);
+
+            // Form submissions
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            document.getElementById('registerForm').addEventListener('submit', handleRegister);
+            document.getElementById('forgotPasswordForm').addEventListener('submit', handleForgotPassword);
+        }
+
+        // Handle login
+        async function handleLogin(e) {
+            e.preventDefault();
+            clearErrors();
+            
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            
+            // Validate inputs
+            let isValid = true;
+            
+            if (!email) {
+                showError('loginEmail', 'Email is required');
+                isValid = false;
+            } else if (!validateEmail(email)) {
+                showError('loginEmail', 'Please enter a valid email address');
+                isValid = false;
+            }
+            
+            if (!password) {
+                showError('loginPassword', 'Password is required');
+                isValid = false;
+            }
+            
+            if (!isValid) return;
+            
+            // Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Check user credentials
+            const users = JSON.parse(localStorage.getItem('questionGeneratorUsers') || '[]');
+            const user = users.find(u => u.email === email && u.password === password);
+            
+            if (user) {
+                // Login successful
+                currentUser = {
+                    email: user.email,
+                    name: user.name,
+                    id: user.id || Date.now().toString()
+                };
+                isLoggedIn = true;
+                
+                // Save to localStorage if remember me is checked
+                if (rememberMe) {
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                }
+                
+                // Update user preferences
+                let userPrefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+                userPrefs[currentUser.email] = {
+                    lastLogin: new Date().toISOString(),
+                    theme: userPrefs[currentUser.email]?.theme || 'light'
+                };
+                localStorage.setItem('userPreferences', JSON.stringify(userPrefs));
+                
+                // Close modal
+                closeModal('loginModal');
+                
+                // Show success message
+                showToast(`Welcome back, ${user.name}!`, 'success');
+                
+                // Reset form
+                document.getElementById('loginForm').reset();
+                
+                // Update UI
+                updateUIForLoginStatus();
+                
+                // Return to home page
+                switchSection('home');
+            } else {
+                // Login failed
+                showError('loginEmail', 'Invalid email or password');
+                showError('loginPassword', 'Invalid email or password');
+                showToast('Invalid email or password. Please try again.', 'error');
+            }
+        }
+
+        // Handle registration
+        async function handleRegister(e) {
+            e.preventDefault();
+            clearErrors();
+            
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+            const agreeTerms = document.getElementById('agreeTerms').checked;
+            
+            // Validate inputs
+            let isValid = true;
+            
+            if (!name) {
+                showError('regName', 'Full name is required');
+                isValid = false;
+            } else if (name.length < 2) {
+                showError('regName', 'Name must be at least 2 characters long');
+                isValid = false;
+            }
+            
+            if (!email) {
+                showError('regEmail', 'Email is required');
+                isValid = false;
+            } else if (!validateEmail(email)) {
+                showError('regEmail', 'Please enter a valid email address');
+                isValid = false;
+            }
+            
+            if (!password) {
+                showError('regPassword', 'Password is required');
+                isValid = false;
+            } else if (password.length < 6) {
+                showError('regPassword', 'Password must be at least 6 characters long');
+                isValid = false;
+            }
+            
+            if (!confirmPassword) {
+                showError('regConfirmPassword', 'Please confirm your password');
+                isValid = false;
+            } else if (password !== confirmPassword) {
+                showError('regConfirmPassword', 'Passwords do not match');
+                isValid = false;
+            }
+            
+            if (!agreeTerms) {
+                showError('termsError', 'You must agree to the terms and conditions');
+                isValid = false;
+            }
+            
+            if (!isValid) return;
+            
+            // Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Check if user already exists
+            const users = JSON.parse(localStorage.getItem('questionGeneratorUsers') || '[]');
+            
+            if (users.some(u => u.email === email)) {
+                showError('regEmail', 'This email is already registered');
+                showToast('An account with this email already exists.', 'error');
+                return;
+            }
+            
+            // Create new user
+            const newUser = {
+                id: Date.now().toString(),
+                name: name,
+                email: email,
+                password: password, // In real app, this should be hashed
+                createdAt: new Date().toISOString()
+            };
+            
+            users.push(newUser);
+            localStorage.setItem('questionGeneratorUsers', JSON.stringify(users));
+            
+            // Auto-login the new user
+            currentUser = {
+                email: newUser.email,
+                name: newUser.name,
+                id: newUser.id
+            };
+            isLoggedIn = true;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            // Initialize user preferences
+            let userPrefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+            userPrefs[email] = {
+                lastLogin: new Date().toISOString(),
+                theme: 'light',
+                preferences: {}
+            };
+            localStorage.setItem('userPreferences', JSON.stringify(userPrefs));
+            
+            // Close modal
+            closeModal('registerModal');
+            
+            // Show success message
+            showToast(`Account created successfully! Welcome, ${name}!`, 'success');
+            
+            // Reset form
+            document.getElementById('registerForm').reset();
+            document.getElementById('passwordStrength').className = 'strength-bar';
+            
+            // Update UI
+            updateUIForLoginStatus();
+            
+            // Return to home page
+            switchSection('home');
+        }
+
+        // Handle forgot password
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+            clearErrors();
+            
+            const email = document.getElementById('forgotEmail').value.trim();
+            
+            // Validate email
+            if (!email) {
+                showError('forgotEmail', 'Email is required');
+                return;
+            }
+            
+            if (!validateEmail(email)) {
+                showError('forgotEmail', 'Please enter a valid email address');
+                return;
+            }
+            
+            // Simulate API call delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Check if user exists
+            const users = JSON.parse(localStorage.getItem('questionGeneratorUsers') || '[]');
+            const userExists = users.some(u => u.email === email);
+            
+            // Always show success message for security (don't reveal if user exists or not)
+            showToast('If an account exists with this email, you will receive a password reset link shortly.', 'success');
+            
+            // Reset form
+            document.getElementById('forgotPasswordForm').reset();
+            
+            // Close modal after delay
+            setTimeout(() => {
+                closeModal('forgotPasswordModal');
+                switchToLogin();
+            }, 2000);
+        }
+
+        // Update UI based on login status
+        function updateUIForLoginStatus() {
+            if (isLoggedIn && currentUser) {
+                // User is logged in
+                loginBtn.innerHTML = '👤 Logout';
+                loginBtn.classList.remove('btn-primary');
+                loginBtn.classList.add('btn-secondary');
+                registerBtn.style.display = 'none';
+                
+                // Update home page content
+                document.getElementById('loginRequired').style.display = 'none';
+                document.getElementById('welcomeSection').style.display = 'block';
+            } else {
+                // User is not logged in
+                loginBtn.innerHTML = '🔐 Login';
+                loginBtn.classList.remove('btn-secondary');
+                loginBtn.classList.add('btn-primary');
+                registerBtn.style.display = 'inline-block';
+                
+                // Update home page content
+                document.getElementById('loginRequired').style.display = 'block';
+                document.getElementById('welcomeSection').style.display = 'none';
+            }
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                currentUser = null;
+                isLoggedIn = false;
+                localStorage.removeItem('currentUser');
+                
+                // Update UI
+                updateUIForLoginStatus();
+                
+                // Show success message
+                showToast('Logged out successfully!', 'success');
+                
+                // Return to home page
+                switchSection('home');
+                
+                // Update header Home button
+                updateHeaderHomeButton();
+            }
+        }
+
+        // Initialize the application
+        init();
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl + L for login/logout
+            if (e.ctrlKey && e.key === 'l') {
+                e.preventDefault();
+                if (isLoggedIn) {
+                    logout();
+                } else {
+                    openModal('loginModal');
+                }
+            }
+            
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                closeModal('loginModal');
+                closeModal('registerModal');
+                closeModal('forgotPasswordModal');
+            }
+            
+            // Home key to return to home
+            if (e.key === 'Home' || (e.ctrlKey && e.key === 'h')) {
+                e.preventDefault();
+                switchSection('home');
+            }
+        });
+    </script>
+</body>
+</html>
