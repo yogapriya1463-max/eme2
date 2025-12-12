@@ -359,7 +359,7 @@
             <div class="home-container">
                 <div class="hero">
                     <h1>Validate Answer Papers</h1>
-                    <p>Upload answer sheets and let AI validate and grade them automatically.</p>
+                    <p>Upload answer key and answer sheets for AI-powered validation and grading.</p>
                     
                     <!-- Section Navigation for Validate Page -->
                     <div class="section-navigation">
@@ -370,7 +370,7 @@
                 
                 <!-- Content for Validate Page -->
                 <div class="form-container">
-                    <h3 style="color: #0366d6; margin-bottom: 1.5rem;">✓ Answer Paper Validation</h3>
+                    <h3 style="color: #0366d6; margin-bottom: 1.5rem;">✓ Answer Paper Validation with Answer Key</h3>
                     
                     <div class="form-row">
                         <div class="form-group">
@@ -386,6 +386,31 @@
                         </div>
                     </div>
 
+                    <!-- Answer Key Upload Section -->
+                    <div class="form-group">
+                        <label>🔑 Upload Answer Key (Required)</label>
+                        <div class="file-upload" id="uploadAnswerKeyBtn">
+                            <div style="pointer-events: none;">
+                                <div>🗝️</div>
+                                <h4>Upload Answer Key</h4>
+                                <p>Upload the correct answer key for validation</p>
+                                <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, TXT</p>
+                            </div>
+                            <input type="file" id="answerKeyUpload" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
+                        </div>
+                        <div id="answerKeyInfo" style="margin-top: 0.5rem; display: none;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
+                                <span style="font-size: 1.2rem;">🗝️</span>
+                                <div>
+                                    <div style="font-weight: 600;" id="answerKeyName">Answer Key</div>
+                                    <div style="font-size: 0.85rem; color: #666;" id="answerKeySize"></div>
+                                </div>
+                                <button id="removeAnswerKeyBtn" style="margin-left: auto; background: none; border: none; color: #dc3545; cursor: pointer;" title="Remove answer key">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Answer Sheets Upload Section -->
                     <div class="form-group">
                         <label>📤 Upload Answer Sheets</label>
                         <div class="file-upload" id="uploadAnswersBtn">
@@ -403,19 +428,39 @@
                     <!-- Action Buttons -->
                     <div class="action-container">
                         <button type="button" id="startValidationBtn" class="btn btn-primary" disabled>
-                            ✅ Start Validation
+                            ✅ Start Validation with Answer Key
                         </button>
                         <button type="button" id="downloadResultsBtn" class="btn btn-success" disabled>
                             📊 Download Results
                         </button>
                         <button type="button" id="clearFilesBtn" class="btn btn-warning">
-                            🗑️ Clear Files
+                            🗑️ Clear All Files
                         </button>
+                         <button type="button" id="resetValidateFormBtn" class="btn btn-warning">
+                            🔄 Reset Form
+                         </button>
+                    </div>
+
+                    <!-- Validation Progress -->
+                    <div id="validationProgress" style="display: none; margin-top: 1.5rem;">
+                        <h4 style="color: #0366d6; margin-bottom: 1rem;">📊 Validation Progress</h4>
+                        <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; border: 1px solid #dee2e6;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span>Processing...</span>
+                                <span id="progressPercent">0%</span>
+                            </div>
+                            <div style="height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden;">
+                                <div id="progressBar" style="height: 100%; background: #0366d6; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                            <div id="progressStatus" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
+                                Waiting to start...
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Results Preview -->
                     <div id="validationResults" class="preview-container" style="display: none;">
-                        <h4>📊 Validation Results</h4>
+                        <h4>📊 Validation Results with Answer Key</h4>
                         <div id="resultsContent" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
                             <!-- Results will be inserted here -->
                         </div>

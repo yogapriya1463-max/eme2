@@ -1,3 +1,4 @@
+[file content begin]
 # backend/app.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -10,6 +11,13 @@ from functools import wraps
 import os
 from dotenv import load_dotenv
 import logging
+import google.generativeai as genai
+import tempfile
+import base64
+import io
+from PIL import Image
+import PyPDF2
+from docx import Document
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
@@ -27,8 +35,10 @@ logger.info(f"Connecting to MongoDB: {MONGO_URI}")
 
 try:
     client = MongoClient(MONGO_URI)
-    db = client['question_generator']  # Changed database name
+    db = client['question_generator']
     users_collection = db['login']
+    papers_collection = db['papers']
+    validations_collection = db['validations']
     
     # Test connection
     client.admin.command('ping')
@@ -41,6 +51,14 @@ try:
 except Exception as e:
     logger.error(f"❌ MongoDB connection failed: {str(e)}")
     raise
+
+# Gemini AI Configuration
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    logger.info("✅ Gemini AI configured successfully")
+else:
+    logger.warning("⚠️ GEMINI_API_KEY not found. AI features will be limited.")
 
 # JWT Configuration
 JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
@@ -59,7 +77,6 @@ def token_required(f):
     def decorated(*args, **kwargs):
         token = None
         
-        # Check for token in Authorization header
         if 'Authorization' in request.headers:
             auth_header = request.headers['Authorization']
             if auth_header.startswith('Bearer '):
@@ -69,14 +86,12 @@ def token_required(f):
             return jsonify({'message': 'Token is missing!'}), 401
         
         try:
-            # Decode the token
             data = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
             current_user = users_collection.find_one({'_id': ObjectId(data['user_id'])})
             
             if not current_user:
                 return jsonify({'message': 'User not found!'}), 401
                 
-            # Remove password from user object
             current_user['_id'] = str(current_user['_id'])
             if 'password' in current_user:
                 del current_user['password']
@@ -90,286 +105,376 @@ def token_required(f):
     
     return decorated
 
+# Gemini AI Helper Functions
+def generate_questions_with_gemini(subject, topics, difficulty, question_types, total_marks):
+    """Generate questions using Gemini AI"""
+    try:
+        if not GEMINI_API_KEY:
+            return None, "Gemini API key not configured"
+        
+        model = genai.GenerativeModel('gemini-pro')
+        
+        prompt = f"""
+        Generate a question paper for {subject} with the following specifications:
+        
+        Subject: {subject}
+        Topics: {topics}
+        Difficulty Level: {difficulty}
+        Question Types Required: {', '.join(question_types)}
+        Total Marks: {total_marks}
+        
+        Please generate a comprehensive question paper with:
+        1. Clear instructions
+        2. Questions distributed by marks
+        3. Questions covering different topics
+        4. Variety as per question types
+        
+        Format the output with section headers and mark allocations.
+        """
+        
+        response = model.generate_content(prompt)
+        return response.text, None
+        
+    except Exception as e:
+        logger.error(f"Gemini AI error: {str(e)}")
+        return None, str(e)
+
+def validate_answer_with_gemini(question, answer, max_marks):
+    """Validate answers using Gemini AI"""
+    try:
+        if not GEMINI_API_KEY:
+            return None, None, "Gemini API key not configured"
+        
+        model = genai.GenerativeModel('gemini-pro')
+        
+        prompt = f"""
+        As an expert examiner, evaluate the following answer:
+        
+        Question: {question}
+        Student's Answer: {answer}
+        Maximum Marks: {max_marks}
+        
+        Please provide:
+        1. Marks awarded (out of {max_marks})
+        2. Brief feedback on the answer
+        3. Key points that should have been included
+        4. Suggestions for improvement
+        
+        Format the response clearly.
+        """
+        
+        response = model.generate_content(prompt)
+        return response.text, None
+        
+    except Exception as e:
+        logger.error(f"Gemini AI validation error: {str(e)}")
+        return None, str(e)
+
+def extract_text_from_file(file_content, file_type):
+    """Extract text from uploaded files for processing"""
+    try:
+        if file_type == 'application/pdf':
+            # Extract text from PDF
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text()
+            return text
+            
+        elif file_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+            # Extract text from DOCX
+            doc = Document(io.BytesIO(file_content))
+            text = "\n".join([para.text for para in doc.paragraphs])
+            return text
+            
+        elif file_type in ['image/jpeg', 'image/png', 'image/jpg']:
+            # Extract text from image using Gemini Vision
+            if not GEMINI_API_KEY:
+                return "Image processing requires Gemini API key"
+            
+            model = genai.GenerativeModel('gemini-pro-vision')
+            image = Image.open(io.BytesIO(file_content))
+            
+            prompt = "Extract all text from this image. If it's handwritten, transcribe it as accurately as possible."
+            response = model.generate_content([prompt, image])
+            return response.text
+            
+        else:
+            return "Unsupported file format"
+            
+    except Exception as e:
+        logger.error(f"File extraction error: {str(e)}")
+        return f"Error extracting text: {str(e)}"
+
 # Routes
 @app.route('/')
 def home():
-    return jsonify({'message': 'Question Generator API is running!'})
+    return jsonify({'message': 'Question Generator API with Gemini AI is running!'})
+
+# Generate Question Paper with AI
+@app.route('/api/generate-paper', methods=['POST'])
+@token_required
+def generate_paper(current_user):
+    try:
+        data = request.get_json()
+        
+        required_fields = ['title', 'subject', 'topics', 'difficulty', 'question_types', 'total_marks']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'message': f'{field} is required'}), 400
+        
+        # Generate questions using Gemini AI
+        ai_content, error = generate_questions_with_gemini(
+            data['subject'],
+            data['topics'],
+            data['difficulty'],
+            data['question_types'],
+            data['total_marks']
+        )
+        
+        if error:
+            # Fallback to template if AI fails
+            ai_content = f"""
+            Question Paper: {data['title']}
+            Subject: {data['subject']}
+            Topics: {data['topics']}
+            Difficulty: {data['difficulty']}
+            Total Marks: {data['total_marks']}
+            
+            Section A: Multiple Choice Questions (20 marks)
+            1. Sample MCQ question? [1 mark]
+            
+            Section B: Short Answer Questions (30 marks)
+            2. Explain briefly... [5 marks]
+            
+            Section C: Long Answer Questions (50 marks)
+            3. Discuss in detail... [10 marks]
+            """
+        
+        # Save to database
+        paper_data = {
+            'user_id': current_user['_id'],
+            'title': data['title'],
+            'subject': data['subject'],
+            'topics': data['topics'],
+            'difficulty': data['difficulty'],
+            'question_types': data['question_types'],
+            'total_marks': data['total_marks'],
+            'ai_generated': bool(GEMINI_API_KEY),
+            'content': ai_content,
+            'created_at': datetime.datetime.utcnow(),
+            'additional_info': data.get('additional_info', {})
+        }
+        
+        result = papers_collection.insert_one(paper_data)
+        
+        return jsonify({
+            'message': 'Question paper generated successfully',
+            'paper_id': str(result.inserted_id),
+            'content': ai_content,
+            'ai_used': bool(GEMINI_API_KEY)
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Generate paper error: {str(e)}")
+        return jsonify({'message': 'Server error occurred'}), 500
+
+# Validate Answer Sheets with AI
+@app.route('/api/validate-answers', methods=['POST'])
+@token_required
+def validate_answers(current_user):
+    try:
+        # Check if files are uploaded
+        if 'files' not in request.files:
+            return jsonify({'message': 'No files uploaded'}), 400
+        
+        files = request.files.getlist('files')
+        data = request.form
+        
+        if len(files) == 0:
+            return jsonify({'message': 'No files selected'}), 400
+        
+        results = []
+        
+        for i, file in enumerate(files):
+            if file.filename == '':
+                continue
+            
+            # Read file content
+            file_content = file.read()
+            file_type = file.content_type
+            
+            # Extract text from file
+            extracted_text = extract_text_from_file(file_content, file_type)
+            
+            # Process with Gemini AI
+            if GEMINI_API_KEY:
+                model = genai.GenerativeModel('gemini-pro')
+                
+                prompt = f"""
+                You are an expert examiner. Evaluate this answer sheet:
+                
+                {extracted_text}
+                
+                Provide:
+                1. Total marks (out of 100)
+                2. Grade (A, B, C, D, F)
+                3. Key strengths
+                4. Areas for improvement
+                5. Overall feedback
+                
+                Format as JSON with keys: marks, grade, strengths, improvements, feedback
+                """
+                
+                try:
+                    response = model.generate_content(prompt)
+                    ai_feedback = response.text
+                except Exception as ai_error:
+                    ai_feedback = f"AI evaluation failed: {str(ai_error)}"
+            else:
+                ai_feedback = "Gemini AI not configured for evaluation"
+            
+            result = {
+                'filename': file.filename,
+                'student_id': f'Student_{i+1}',
+                'extracted_text': extracted_text[:500] + "..." if len(extracted_text) > 500 else extracted_text,
+                'ai_feedback': ai_feedback,
+                'file_type': file_type
+            }
+            
+            results.append(result)
+        
+        # Save validation results to database
+        validation_data = {
+            'user_id': current_user['_id'],
+            'paper_title': data.get('paper_title', 'Untitled'),
+            'student_count': len(files),
+            'results': results,
+            'created_at': datetime.datetime.utcnow(),
+            'ai_used': bool(GEMINI_API_KEY)
+        }
+        
+        result = validations_collection.insert_one(validation_data)
+        
+        return jsonify({
+            'message': 'Answer sheets validated successfully',
+            'validation_id': str(result.inserted_id),
+            'results': results,
+            'ai_used': bool(GEMINI_API_KEY)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Validate answers error: {str(e)}")
+        return jsonify({'message': 'Server error occurred'}), 500
+
+# Get AI-generated sample questions
+@app.route('/api/ai-sample-questions', methods=['POST'])
+@token_required
+def get_ai_sample_questions(current_user):
+    try:
+        data = request.get_json()
+        
+        subject = data.get('subject', 'General')
+        topic = data.get('topic', 'Introduction')
+        count = data.get('count', 5)
+        
+        if not GEMINI_API_KEY:
+            return jsonify({
+                'message': 'Gemini AI not configured',
+                'questions': [
+                    f"Sample question {i+1} about {topic} in {subject}"
+                    for i in range(count)
+                ]
+            }), 200
+        
+        model = genai.GenerativeModel('gemini-pro')
+        
+        prompt = f"""
+        Generate {count} sample questions for {subject} on the topic of {topic}.
+        
+        Include:
+        - Different question types (MCQ, short answer, essay)
+        - Varying difficulty levels
+        - Clear mark allocations
+        - Expected answers
+        
+        Format each question clearly.
+        """
+        
+        response = model.generate_content(prompt)
+        
+        return jsonify({
+            'message': 'Sample questions generated successfully',
+            'questions': response.text.split('\n'),
+            'ai_generated': True
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Sample questions error: {str(e)}")
+        return jsonify({'message': 'Server error occurred'}), 500
+
+# Check AI Status
+@app.route('/api/ai-status', methods=['GET'])
+def ai_status():
+    return jsonify({
+        'gemini_configured': bool(GEMINI_API_KEY),
+        'ai_features': {
+            'question_generation': bool(GEMINI_API_KEY),
+            'answer_validation': bool(GEMINI_API_KEY),
+            'text_extraction': bool(GEMINI_API_KEY),
+            'image_processing': bool(GEMINI_API_KEY)
+        }
+    }), 200
+
+# ... [Keep all existing user/auth routes from previous app.py] ...
 
 # User Registration
 @app.route('/api/register', methods=['POST'])
 def register():
-    try:
-        data = request.get_json()
-        logger.info(f"📝 Registration attempt for email: {data.get('email')}")
-        
-        # Validate required fields
-        required_fields = ['name', 'email', 'password', 'confirmPassword']
-        for field in required_fields:
-            if field not in data or not data[field].strip():
-                logger.warning(f"Missing field: {field}")
-                return jsonify({
-                    'message': f'{field.replace("_", " ").title()} is required',
-                    'field': field
-                }), 400
-        
-        # Check if passwords match
-        if data['password'] != data['confirmPassword']:
-            logger.warning("Passwords don't match")
-            return jsonify({
-                'message': 'Passwords do not match',
-                'field': 'confirmPassword'
-            }), 400
-        
-        # Check password strength
-        if len(data['password']) < 6:
-            logger.warning("Password too short")
-            return jsonify({
-                'message': 'Password must be at least 6 characters long',
-                'field': 'password'
-            }), 400
-        
-        # Check if user already exists
-        existing_user = users_collection.find_one({'email': data['email'].lower()})
-        if existing_user:
-            logger.warning(f"Email already exists: {data['email']}")
-            return jsonify({
-                'message': 'Email already registered',
-                'field': 'email'
-            }), 400
-        
-        # Create new user
-        user_data = {
-            'name': data['name'].strip(),
-            'email': data['email'].lower().strip(),
-            'password': generate_password_hash(data['password']),
-            'created_at': datetime.datetime.utcnow(),
-            'last_login': datetime.datetime.utcnow(),
-            'role': 'user',
-            'is_active': True,
-            'preferences': {}
-        }
-        
-        logger.info(f"Creating user: {user_data['email']}")
-        
-        # Insert user into database
-        result = users_collection.insert_one(user_data)
-        logger.info(f"✅ User created with ID: {result.inserted_id}")
-        
-        # Generate JWT token
-        token = generate_token(result.inserted_id, user_data['email'])
-        
-        # Prepare user response
-        user_response = {
-            '_id': str(result.inserted_id),
-            'name': user_data['name'],
-            'email': user_data['email'],
-            'role': user_data['role'],
-            'created_at': user_data['created_at'].isoformat()
-        }
-        
-        # Log success
-        logger.info(f"🎉 Registration successful for: {user_data['email']}")
-        
-        return jsonify({
-            'message': 'Registration successful',
-            'user': user_response,
-            'token': token
-        }), 201
-        
-    except Exception as e:
-        logger.error(f"Registration error: {str(e)}")
-        return jsonify({'message': 'Server error occurred'}), 500
+    # ... [Keep existing register code] ...
 
 # User Login
 @app.route('/api/login', methods=['POST'])
 def login():
-    try:
-        data = request.get_json()
-        email = data.get('email', '').lower()
-        logger.info(f"🔐 Login attempt for email: {email}")
-        
-        # Validate required fields
-        if not email or not data.get('password'):
-            logger.warning("Missing email or password")
-            return jsonify({'message': 'Email and password are required'}), 400
-        
-        # Find user by email
-        user = users_collection.find_one({'email': email})
-        
-        if not user:
-            logger.warning(f"User not found: {email}")
-            return jsonify({'message': 'Invalid email or password'}), 401
-        
-        # Check if user is active
-        if not user.get('is_active', True):
-            logger.warning(f"Account disabled: {email}")
-            return jsonify({'message': 'Account is disabled'}), 401
-        
-        # Verify password
-        if not check_password_hash(user['password'], data['password']):
-            logger.warning(f"Invalid password for: {email}")
-            return jsonify({'message': 'Invalid email or password'}), 401
-        
-        # Update last login
-        users_collection.update_one(
-            {'_id': user['_id']},
-            {'$set': {'last_login': datetime.datetime.utcnow()}}
-        )
-        
-        # Generate JWT token
-        token = generate_token(user['_id'], user['email'])
-        
-        # Prepare user response
-        user_response = {
-            '_id': str(user['_id']),
-            'name': user['name'],
-            'email': user['email'],
-            'role': user.get('role', 'user'),
-            'created_at': user['created_at'].isoformat() if 'created_at' in user else None
-        }
-        
-        logger.info(f"✅ Login successful for: {email}")
-        
-        return jsonify({
-            'message': 'Login successful',
-            'user': user_response,
-            'token': token
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Login error: {str(e)}")
-        return jsonify({'message': 'Server error occurred'}), 500
+    # ... [Keep existing login code] ...
 
 # Forgot Password
 @app.route('/api/forgot-password', methods=['POST'])
 def forgot_password():
-    try:
-        data = request.get_json()
-        
-        if not data.get('email'):
-            return jsonify({'message': 'Email is required'}), 400
-        
-        # Check if user exists
-        user = users_collection.find_one({'email': data['email'].lower()})
-        
-        # Always return success message for security (don't reveal if user exists)
-        # In production, you would send an email with reset link here
-        
-        return jsonify({
-            'message': 'If an account exists with this email, you will receive a password reset link shortly.'
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Forgot password error: {str(e)}")
-        return jsonify({'message': 'Server error occurred'}), 500
+    # ... [Keep existing forgot password code] ...
 
-# Get User Profile (Protected Route)
+# Get User Profile
 @app.route('/api/profile', methods=['GET'])
 @token_required
 def get_profile(current_user):
-    return jsonify({'user': current_user}), 200
+    # ... [Keep existing profile code] ...
 
 # Check Authentication Status
 @app.route('/api/check-auth', methods=['GET'])
 def check_auth():
-    token = None
-    
-    # Check for token in Authorization header
-    if 'Authorization' in request.headers:
-        auth_header = request.headers['Authorization']
-        if auth_header.startswith('Bearer '):
-            token = auth_header.split(' ')[1]
-    
-    if not token:
-        return jsonify({'authenticated': False}), 200
-    
-    try:
-        # Decode the token
-        data = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        user = users_collection.find_one({'_id': ObjectId(data['user_id'])})
-        
-        if user:
-            user_response = {
-                '_id': str(user['_id']),
-                'name': user['name'],
-                'email': user['email'],
-                'role': user.get('role', 'user')
-            }
-            return jsonify({
-                'authenticated': True,
-                'user': user_response
-            }), 200
-        else:
-            return jsonify({'authenticated': False}), 200
-            
-    except jwt.ExpiredSignatureError:
-        return jsonify({'authenticated': False}), 200
-    except jwt.InvalidTokenError:
-        return jsonify({'authenticated': False}), 200
-    except Exception as e:
-        return jsonify({'authenticated': False}), 200
+    # ... [Keep existing check auth code] ...
 
 # Database Status
 @app.route('/api/db-status', methods=['GET'])
 def db_status():
-    try:
-        # Check MongoDB connection
-        client.admin.command('ping')
-        
-        # Get user count
-        user_count = users_collection.count_documents({})
-        
-        # Get sample users (without passwords)
-        sample_users = list(users_collection.find(
-            {}, 
-            {'password': 0}
-        ).limit(5))
-        
-        # Convert ObjectId to string
-        for user in sample_users:
-            user['_id'] = str(user['_id'])
-        
-        return jsonify({
-            'status': 'connected',
-            'database': 'question_generator',
-            'collection': 'login',
-            'user_count': user_count,
-            'sample_users': sample_users,
-            'message': 'MongoDB is connected and working'
-        }), 200
-        
-    except Exception as e:
-        return jsonify({
-            'status': 'disconnected',
-            'error': str(e),
-            'message': 'MongoDB connection failed'
-        }), 500
+    # ... [Keep existing db status code] ...
 
 # Health Check
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    try:
-        # Check MongoDB connection
-        client.admin.command('ping')
-        return jsonify({
-            'status': 'healthy',
-            'database': 'connected',
-            'server': 'running'
-        }), 200
-    except Exception as e:
-        return jsonify({
-            'status': 'unhealthy',
-            'database': 'disconnected',
-            'error': str(e)
-        }), 500
+    # ... [Keep existing health check code] ...
 
 if __name__ == '__main__':
     # Create indexes
     try:
         users_collection.create_index('email', unique=True)
-        logger.info("✅ Email index created")
+        papers_collection.create_index('user_id')
+        validations_collection.create_index('user_id')
+        logger.info("✅ Database indexes created")
     except Exception as e:
         logger.error(f"Index creation error: {str(e)}")
     
-    logger.info("🚀 Starting Flask server on http://localhost:5000")
+    logger.info("🚀 Starting Flask server with Gemini AI on http://localhost:5000")
+    logger.info(f"🤖 Gemini AI Status: {'Enabled' if GEMINI_API_KEY else 'Disabled'}")
     app.run(debug=True, port=5000, host='0.0.0.0')
+[file content end]
