@@ -204,10 +204,13 @@ async function mockRegister(name, email, password) {
 // Mock forgot password function
 async function mockForgotPassword(email) {
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    const mockToken = 'mock_reset_' + Date.now();
+    const resetLink = `${window.location.origin}/reset_password.html?token=${mockToken}`;
     return {
         success: true,
-        message: 'If an account exists with this email, you will receive a password reset link shortly.'
+        message: 'If an account exists with this email, you will receive a password reset link shortly.',
+        reset_link: resetLink,
+        token: mockToken
     };
 }
 
@@ -526,6 +529,11 @@ async function handleForgotPassword(e) {
         if (response.success) {
             // Show success message
             showToast(response.message || 'If an account exists with this email, you will receive a password reset link shortly.', 'success');
+            if (response.reset_link) {
+                console.info('Password reset link (DEV):', response.reset_link);
+                // Show the reset link in a toast for local debugging when using mock API
+                if (USE_MOCK_API) showToast('Reset Link: ' + response.reset_link, 'info');
+            }
             
             // Reset form
             document.getElementById('forgotPasswordForm').reset();
