@@ -187,7 +187,8 @@
                     <h2>Welcome back! 👋</h2>
                     <p>You're now logged in. Access all features to create and manage question papers.</p>
                     <div class="action-buttons" style="margin-top: 2rem;">
-                        <button id="startGenerating" class="btn btn-primary">📄 Start Generating Papers</button>
+                        <button id="startGenerating" class="btn btn-primary">📄 Generate Question Paper</button>
+                        <button id="startGeneratingMaterial" class="btn btn-primary">🧾 Generate Material</button>
                         <button id="startValidating" class="btn btn-success">✓ Validate Answer Papers</button>
                     </div>
                 </div>
@@ -204,6 +205,7 @@
                     <!-- Section Navigation for Generate Page -->
                     <div class="section-navigation">
                         <button id="homeFromGenerate" class="btn btn-secondary">🏠 Home</button>
+                        <button id="generateMaterialFromGenerate" class="btn btn-primary">🧾 Generate Material</button>
                         <button id="validateFromGenerate" class="btn btn-success">✓ Validate Answers</button>
                     </div>
                 </div>
@@ -351,6 +353,118 @@
                 <div class="section-navigation" style="margin-top: 2rem;">
                     <button id="bottomHomeFromGenerate" class="btn btn-secondary">🏠 Home</button>
                     <button id="bottomValidateFromGenerate" class="btn btn-success">✓ Validate Answers</button>
+                        <button id="bottomGenerateMaterialFromGenerate" class="btn btn-primary">🧾 Generate Material</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Generate Material Page -->
+        <section id="generateMaterialSection" class="section">
+            <div class="home-container">
+                <div class="hero">
+                    <h1>Generate Study Material</h1>
+                    <p>Upload a file (PDF, DOCX, TXT, or image) to generate a topic summary and short notes.</p>
+                    <div class="section-navigation">
+                        <button id="homeFromGenerateMaterial" class="btn btn-secondary">🏠 Home</button>
+                        <button id="generateFromGenerateMaterial" class="btn btn-primary">📄 Generate Papers</button>
+                        <button id="validateFromGenerateMaterial" class="btn btn-success">✓ Validate Answers</button>
+                    </div>
+                </div>
+                <div class="form-container">
+                    <h3 style="color: #0366d6; margin-bottom: 1.5rem;">📚 Generate Short Notes / Summary</h3>
+                    <div class="form-group">
+                        <label>📤 Upload Material</label>
+                        <div class="file-upload" id="uploadMaterialBtn">
+                            <div style="pointer-events: none;">
+                                <div>📁</div>
+                                <h4>Upload file</h4>
+                                <p>Upload your material (PDF, DOCX, TXT, JPG, PNG)</p>
+                            </div>
+                            <input type="file" id="materialUpload" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
+                        </div>
+                        <div id="materialFileInfo" style="margin-top: 0.5rem; display: none;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
+                                <span style="font-size: 1.2rem;">📄</span>
+                                <div>
+                                    <div style="font-weight: 600;" id="materialFileName">Uploaded file</div>
+                                    <div style="font-size: 0.85rem; color: #666;" id="materialFileSize"></div>
+                                </div>
+                                <button id="removeMaterialBtn" style="margin-left: auto; background: none; border: none; color: #dc3545; cursor: pointer;" title="Remove material">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="summaryLength">Summary length</label>
+                            <select id="summaryLength" class="form-control">
+                                <option value="short">Short (3-4 lines)</option>
+                                <option value="medium" selected>Medium (1-2 paragraphs)</option>
+                                <option value="long">Long (detailed summary)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="notesCount">Number of bullet notes</label>
+                            <input type="number" id="notesCount" class="form-control" value="5" min="1" max="20">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>📘 Material Type</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="mt_oneword" value="oneword">
+                                    <label for="mt_oneword">One Word</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="mt_summary" value="summary" checked>
+                                    <label for="mt_summary">Summary</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="mt_2marks" value="2marks">
+                                    <label for="mt_2marks">2 Marks Question</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="mt_long" value="long">
+                                    <label for="mt_long">Long Question</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="mt_essay" value="essay">
+                                    <label for="mt_essay">Essay Type</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="materialDifficulty">Difficulty Level</label>
+                            <select id="materialDifficulty" class="form-control">
+                                <option value="easy">Easy</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="materialTopics">📖 Topics (comma separated)</label>
+                            <input type="text" id="materialTopics" class="form-control" placeholder="e.g., Algebra, Calculus">
+                        </div>
+                        <div class="form-group">
+                            <label for="materialInstructions">📝 Additional Instructions</label>
+                            <textarea id="materialInstructions" class="form-control" rows="2" placeholder="Any specific instructions for the material..."></textarea>
+                        </div>
+                    </div>
+                    <div class="action-container">
+                        <div style="display:flex; gap:1rem;">
+                            <button id="generateMaterialBtn" class="btn btn-primary">🧾 Generate Material</button>
+                            <button id="resetMaterialBtn" class="btn btn-warning">🔄 Reset</button>
+                        </div>
+                        <button id="downloadMaterialBtn" class="btn btn-success" disabled>⬇️ Download Summary</button>
+                    </div>
+
+                    <div id="materialPreview" class="preview-container" style="display:none; margin-top:1.5rem;">
+                        <h4>📚 Generated Material</h4>
+                        <div id="materialPreviewContent" style="background:white; padding:1rem; border-radius:6px; border: 1px solid #dee2e6;">
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -366,6 +480,7 @@
                     <div class="section-navigation">
                         <button id="homeFromValidate" class="btn btn-secondary">🏠 Home</button>
                         <button id="generateFromValidate" class="btn btn-primary">📄 Generate Papers</button>
+                        <button id="generateMaterialFromValidate" class="btn btn-primary">🧾 Generate Material</button>
                     </div>
                 </div>
                 

@@ -14,12 +14,16 @@ let token = null;
 let uploadedFiles = [];
 let generatedPaperContent = null;
 let uploadedAnswerKey = null;
+// Material generation state
+let uploadedMaterialFile = null;
+let generatedMaterial = null;
 
 // DOM Elements
 const sections = {
     home: document.getElementById('homeSection'),
     generate: document.getElementById('generateSection'),
-    validate: document.getElementById('validateSection')
+    validate: document.getElementById('validateSection'),
+    generateMaterial: document.getElementById('generateMaterialSection')
 };
 
 // Toast system
@@ -1561,11 +1565,22 @@ function setupEventListeners() {
     // Welcome section buttons
     const startGenerating = document.getElementById('startGenerating');
     const startValidating = document.getElementById('startValidating');
+    const startGeneratingMaterial = document.getElementById('startGeneratingMaterial');
     
     if (startGenerating) {
         startGenerating.addEventListener('click', () => {
             if (isLoggedIn) {
                 switchSection('generate');
+            } else {
+                showToast('Please login first', 'error');
+                openModal('loginModal');
+            }
+        });
+    }
+    if (startGeneratingMaterial) {
+        startGeneratingMaterial.addEventListener('click', () => {
+            if (isLoggedIn) {
+                switchSection('generateMaterial');
             } else {
                 showToast('Please login first', 'error');
                 openModal('loginModal');
@@ -1586,14 +1601,18 @@ function setupEventListeners() {
     
     // Generate section navigation buttons
     const homeFromGenerate = document.getElementById('homeFromGenerate');
+    const generateMaterialFromGenerate = document.getElementById('generateMaterialFromGenerate');
     const validateFromGenerate = document.getElementById('validateFromGenerate');
     const bottomHomeFromGenerate = document.getElementById('bottomHomeFromGenerate');
     const bottomValidateFromGenerate = document.getElementById('bottomValidateFromGenerate');
     
     if (homeFromGenerate) homeFromGenerate.addEventListener('click', () => switchSection('home'));
+    if (generateMaterialFromGenerate) generateMaterialFromGenerate.addEventListener('click', () => switchSection('generateMaterial'));
     if (validateFromGenerate) validateFromGenerate.addEventListener('click', () => switchSection('validate'));
     if (bottomHomeFromGenerate) bottomHomeFromGenerate.addEventListener('click', () => switchSection('home'));
     if (bottomValidateFromGenerate) bottomValidateFromGenerate.addEventListener('click', () => switchSection('validate'));
+    const bottomGenerateMaterialFromGenerate = document.getElementById('bottomGenerateMaterialFromGenerate');
+    if (bottomGenerateMaterialFromGenerate) bottomGenerateMaterialFromGenerate.addEventListener('click', () => switchSection('generateMaterial'));
     
     // Validate section navigation buttons
     const homeFromValidate = document.getElementById('homeFromValidate');
@@ -1605,6 +1624,17 @@ function setupEventListeners() {
     if (generateFromValidate) generateFromValidate.addEventListener('click', () => switchSection('generate'));
     if (bottomHomeFromValidate) bottomHomeFromValidate.addEventListener('click', () => switchSection('home'));
     if (bottomGenerateFromValidate) bottomGenerateFromValidate.addEventListener('click', () => switchSection('generate'));
+    const generateMaterialFromValidate = document.getElementById('generateMaterialFromValidate');
+    if (generateMaterialFromValidate) generateMaterialFromValidate.addEventListener('click', () => switchSection('generateMaterial'));
+
+    // Generate Material section navigation buttons
+    const homeFromGenerateMaterial = document.getElementById('homeFromGenerateMaterial');
+    const generateFromGenerateMaterial = document.getElementById('generateFromGenerateMaterial');
+    const validateFromGenerateMaterial = document.getElementById('validateFromGenerateMaterial');
+
+    if (homeFromGenerateMaterial) homeFromGenerateMaterial.addEventListener('click', () => switchSection('home'));
+    if (generateFromGenerateMaterial) generateFromGenerateMaterial.addEventListener('click', () => switchSection('generate'));
+    if (validateFromGenerateMaterial) validateFromGenerateMaterial.addEventListener('click', () => switchSection('validate'));
 
     // Generate Paper functionality
     const generatePaperBtn = document.getElementById('generatePaperBtn');
@@ -1707,7 +1737,242 @@ function setupEventListeners() {
     if (loginForm) loginForm.addEventListener('submit', handleLogin);
     if (registerForm) registerForm.addEventListener('submit', handleRegister);
     if (forgotPasswordForm) forgotPasswordForm.addEventListener('submit', handleForgotPassword);
+
+    // Generate Material functionality
+    const materialUpload = document.getElementById('materialUpload');
+    const uploadMaterialBtn = document.getElementById('uploadMaterialBtn');
+    const removeMaterialBtn = document.getElementById('removeMaterialBtn');
+    const generateMaterialBtn = document.getElementById('generateMaterialBtn');
+    const downloadMaterialBtn = document.getElementById('downloadMaterialBtn');
+    const resetMaterialBtn = document.getElementById('resetMaterialBtn');
+    // Material options
+    const mt_oneword = document.getElementById('mt_oneword');
+    const mt_summary = document.getElementById('mt_summary');
+    const mt_2marks = document.getElementById('mt_2marks');
+    const mt_long = document.getElementById('mt_long');
+    const mt_essay = document.getElementById('mt_essay');
+    const materialDifficulty = document.getElementById('materialDifficulty');
+    const materialTopics = document.getElementById('materialTopics');
+    const materialInstructions = document.getElementById('materialInstructions');
+
+    if (uploadMaterialBtn) uploadMaterialBtn.addEventListener('click', () => materialUpload.click());
+    if (materialUpload) materialUpload.addEventListener('change', handleMaterialUpload);
+    if (removeMaterialBtn) removeMaterialBtn.addEventListener('click', removeMaterial);
+    if (generateMaterialBtn) generateMaterialBtn.addEventListener('click', generateMaterial);
+    if (downloadMaterialBtn) downloadMaterialBtn.addEventListener('click', downloadMaterial);
+    if (resetMaterialBtn) resetMaterialBtn.addEventListener('click', () => {
+        if (confirm('Reset material form and clear generated content?')) resetMaterialForm();
+    });
 }
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', init);
+
+// Helpers for material generation UI
+function humanFileSize(size) {
+    if (!size) return 'Unknown size';
+    if (size < 1024) return size + ' B';
+    const i = Math.floor(Math.log(size) / Math.log(1024));
+    return (size / Math.pow(1024, i)).toFixed(1) + ' ' + ['B', 'KB', 'MB', 'GB'][i];
+}
+
+// Material handlers
+function handleMaterialUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    uploadedMaterialFile = file;
+    const info = document.getElementById('materialFileInfo');
+    const nameEl = document.getElementById('materialFileName');
+    const sizeEl = document.getElementById('materialFileSize');
+    if (info && nameEl && sizeEl) {
+        nameEl.textContent = file.name;
+        sizeEl.textContent = humanFileSize(file.size);
+        info.style.display = 'block';
+    }
+    const generateBtn = document.getElementById('generateMaterialBtn');
+    if (generateBtn) generateBtn.disabled = false;
+}
+
+function removeMaterial() {
+    uploadedMaterialFile = null;
+    const materialInput = document.getElementById('materialUpload');
+    if (materialInput) materialInput.value = '';
+    const info = document.getElementById('materialFileInfo');
+    if (info) info.style.display = 'none';
+    const generateBtn = document.getElementById('generateMaterialBtn');
+    if (generateBtn) generateBtn.disabled = true;
+    const downloadBtn = document.getElementById('downloadMaterialBtn');
+    if (downloadBtn) downloadBtn.disabled = true;
+    const preview = document.getElementById('materialPreview');
+    if (preview) preview.style.display = 'none';
+    generatedMaterial = null;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/[&"'<>]/g, function (c) {
+        return { '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' }[c];
+    });
+}
+
+function displayGeneratedMaterial(data) {
+    const preview = document.getElementById('materialPreview');
+    const content = document.getElementById('materialPreviewContent');
+    if (!preview || !content) return;
+    content.innerHTML = '';
+    // Show generation settings if present
+    const settings = data.settings || (data.material_types ? { materialTypes: data.material_types, difficulty: data.difficulty, topics: data.topics, instructions: data.instructions } : null);
+    if (settings) {
+        const setEl = document.createElement('div');
+        const types = settings.materialTypes || settings.material_types || [];
+        setEl.innerHTML = `<div style="margin-bottom:0.75rem; font-size:0.95rem; color:#555;"><strong>Settings:</strong> Types: ${escapeHtml(Array.isArray(types) ? types.join(', ') : types)} | Difficulty: ${escapeHtml(settings.difficulty || '')} | Topics: ${escapeHtml(settings.topics || '')}</div>`;
+        if (settings.instructions) {
+            const ins = document.createElement('div');
+            ins.style.fontSize = '0.9rem';
+            ins.style.color = '#666';
+            ins.style.marginBottom = '0.75rem';
+            ins.textContent = `Instructions: ${settings.instructions}`;
+            setEl.appendChild(ins);
+        }
+        content.appendChild(setEl);
+    }
+    const sumEl = document.createElement('div');
+    sumEl.innerHTML = `<h4 style='margin-top:0;'>Summary</h4><p>${escapeHtml(data.summary)}</p>`;
+    content.appendChild(sumEl);
+    if (Array.isArray(data.notes) && data.notes.length) {
+        const notesEl = document.createElement('div');
+        notesEl.innerHTML = `<h4>Short Notes</h4><ul>${data.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>`;
+        content.appendChild(notesEl);
+    }
+    preview.style.display = 'block';
+}
+
+function resetMaterialForm() {
+    removeMaterial();
+    const summaryLength = document.getElementById('summaryLength');
+    const notesCount = document.getElementById('notesCount');
+    const mt_oneword = document.getElementById('mt_oneword');
+    const mt_summary = document.getElementById('mt_summary');
+    const mt_2marks = document.getElementById('mt_2marks');
+    const mt_long = document.getElementById('mt_long');
+    const mt_essay = document.getElementById('mt_essay');
+    const materialDifficulty = document.getElementById('materialDifficulty');
+    const materialTopics = document.getElementById('materialTopics');
+    const materialInstructions = document.getElementById('materialInstructions');
+    if (summaryLength) summaryLength.value = 'medium';
+    if (notesCount) notesCount.value = '5';
+    if (mt_oneword) mt_oneword.checked = false;
+    if (mt_summary) mt_summary.checked = true;
+    if (mt_2marks) mt_2marks.checked = false;
+    if (mt_long) mt_long.checked = false;
+    if (mt_essay) mt_essay.checked = false;
+    if (materialDifficulty) materialDifficulty.value = 'medium';
+    if (materialTopics) materialTopics.value = '';
+    if (materialInstructions) materialInstructions.value = '';
+}
+
+function downloadMaterial() {
+    if (!generatedMaterial) {
+        showToast('No generated material', 'error');
+        return;
+    }
+    const settings = generatedMaterial.settings || { material_types: generatedMaterial.material_types, difficulty: generatedMaterial.difficulty, topics: generatedMaterial.topics, instructions: generatedMaterial.instructions };
+    let text = '';
+    if (settings) {
+        const types = settings.materialTypes || settings.material_types || [];
+        text += `Settings: Types: ${Array.isArray(types) ? types.join(', ') : types} | Difficulty: ${settings.difficulty || ''} | Topics: ${settings.topics || ''}\n`;
+        if (settings.instructions) text += `Instructions: ${settings.instructions}\n`;
+        text += '\n';
+    }
+    text += 'Summary:\n' + (generatedMaterial.summary || '') + '\n\n';
+    if (Array.isArray(generatedMaterial.notes) && generatedMaterial.notes.length) {
+        text += 'Notes:\n' + generatedMaterial.notes.join('\n') + '\n';
+    }
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'generated_material.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+async function mockGenerateMaterial(file, summaryLength, notesCount, materialTypes=[], difficulty='medium', topics='', instructions='') {
+    const ext = (file.name || '').split('.').pop().toLowerCase();
+    if (ext === 'txt') {
+        const text = await file.text();
+        // Pass along additional options to mock summarizer (it can tag difficulty/topics)
+        const result = mockSummarizeText(text, summaryLength, notesCount);
+        result.settings = { materialTypes, difficulty, topics, instructions };
+        return result;
+    }
+    const simpleSummary = `This is a short summary (${difficulty}) of the uploaded file named ${file.name}.\nTypes: ${materialTypes.join(', ') || 'summary'}\nTopics: ${topics}`;
+    const notes = Array.from({ length: Math.max(1, notesCount) }, (_, i) => `Note ${i + 1}: Key point about ${file.name}`);
+    return { success: true, summary: simpleSummary, notes };
+}
+
+function mockSummarizeText(text, summaryLength, notesCount) {
+    const sentences = text.replace(/\s+/g, ' ').split(/(?<=\.|\?|\!)\s/);
+    let count;
+    if (summaryLength === 'short') count = Math.min(2, sentences.length);
+    else if (summaryLength === 'medium') count = Math.min(5, sentences.length);
+    else count = Math.min(10, sentences.length);
+    const summary = sentences.slice(0, count).join(' ');
+    const notes = sentences.slice(count, count + notesCount).map((s, i) => `${i + 1}. ${s.trim()}`);
+    return { success: true, summary, notes };
+}
+
+async function generateMaterial() {
+    const generateBtn = document.getElementById('generateMaterialBtn');
+    const downloadBtn = document.getElementById('downloadMaterialBtn');
+    const summaryLength = document.getElementById('summaryLength').value;
+    const notesCount = parseInt(document.getElementById('notesCount').value || '5', 10);
+    const materialTypes = [];
+    if (mt_oneword && mt_oneword.checked) materialTypes.push(mt_oneword.value);
+    if (mt_summary && mt_summary.checked) materialTypes.push(mt_summary.value);
+    if (mt_2marks && mt_2marks.checked) materialTypes.push(mt_2marks.value);
+    if (mt_long && mt_long.checked) materialTypes.push(mt_long.value);
+    if (mt_essay && mt_essay.checked) materialTypes.push(mt_essay.value);
+    const difficulty = (materialDifficulty && materialDifficulty.value) || 'medium';
+    const topics = (materialTopics && materialTopics.value) || '';
+    const instructions = (materialInstructions && materialInstructions.value) || '';
+    if (!uploadedMaterialFile) {
+        showToast('Please upload a file first', 'error');
+        return;
+    }
+    generateBtn.disabled = true;
+    try {
+        let response;
+        if (USE_MOCK_API) {
+            response = await mockGenerateMaterial(uploadedMaterialFile, summaryLength, notesCount, materialTypes, difficulty, topics, instructions);
+        } else {
+            const fd = new FormData();
+            fd.append('file', uploadedMaterialFile);
+            fd.append('summary_length', summaryLength);
+            fd.append('notes_count', notesCount);
+            fd.append('material_types', JSON.stringify(materialTypes));
+            fd.append('difficulty', difficulty);
+            fd.append('topics', topics);
+            fd.append('instructions', instructions);
+            const resp = await fetch(`${API_BASE_URL}/generate-material`, {
+                method: 'POST',
+                body: fd,
+                headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+            });
+            response = await resp.json();
+        }
+        if (response && response.success) {
+            generatedMaterial = response;
+            displayGeneratedMaterial(response);
+            if (downloadBtn) downloadBtn.disabled = false;
+            showToast('Material generated successfully', 'success');
+        } else {
+            showToast(response.message || 'Failed to generate material', 'error');
+        }
+    } catch (err) {
+        console.error('Generate Material error:', err);
+        showToast('An error occurred while generating material', 'error');
+    } finally {
+        generateBtn.disabled = false;
+    }
+}

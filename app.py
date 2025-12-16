@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import datetime
 from functools import wraps
+import json
 import smtplib
 from email.message import EmailMessage
 import os
@@ -462,6 +463,92 @@ def ai_status():
             'image_processing': bool(GEMINI_API_KEY)
         }
     }), 200
+
+
+# Generate Material route: accepts a single file and returns a summary and short notes
+@app.route('/api/generate-material', methods=['POST'])
+@token_required
+def api_generate_material(current_user):
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'No file uploaded.'}), 400
+
+        f = request.files['file']
+        summary_length = request.form.get('summary_length', 'medium')
+        notes_count = int(request.form.get('notes_count', 5))
+        # New optional parameters
+        material_types_raw = request.form.get('material_types', '')
+        try:
+            if material_types_raw:
+                material_types = json.loads(material_types_raw)
+            else:
+                material_types = []
+        except Exception:
+            # Fallback if it was sent as a comma-separated string
+            material_types = [t.strip() for t in material_types_raw.split(',') if t.strip()]
+        difficulty = request.form.get('difficulty', 'medium')
+        topics = request.form.get('topics', '')
+        instructions = request.form.get('instructions', '')
+
+        file_bytes = f.read()
+        text = extract_text_from_file(file_bytes, f.mimetype)
+        if not text or text.startswith('Error'):
+            # If no text extracted and Gemini not configured, return error
+            if not GEMINI_API_KEY:
+                return jsonify({'success': False, 'message': 'Could not extract text from file.'}), 400
+
+        # If Gemini configured, use it for better summarization
+        if GEMINI_API_KEY:
+            try:
+                model = genai.GenerativeModel('gemini-pro')
+                prompt = f"""
+                You are an expert assistant. Summarize the following text into a {summary_length} summary (brief paragraph(s)) and provide {notes_count} concise bullet points.
+
+                Context / Requirements:
+                Material types: {', '.join(material_types) or 'summary'}
+                Difficulty: {difficulty}
+                Topics: {topics}
+                Instructions: {instructions}
+
+                Text:
+                {text}
+
+                Return the summary followed by the bullet points.
+                """
+                resp = model.generate_content(prompt)
+                resp_text = resp.text.strip()
+                # Attempt to split into summary and notes
+                parts = resp_text.split('\n\n')
+                summary = parts[0] if parts else resp_text
+                notes = []
+                if len(parts) > 1:
+                    # parse notes lines
+                    notes_lines = [line.strip() for line in parts[1].split('\n') if line.strip()]
+                    for line in notes_lines:
+                        if line and len(notes) < notes_count:
+                            notes.append(line)
+                return jsonify({'success': True, 'summary': summary, 'notes': notes, 'material_types': material_types, 'difficulty': difficulty, 'topics': topics, 'instructions': instructions}), 200
+            except Exception as e:
+                logger.warning('Gemini summarization failed: %s', str(e))
+
+        # Fallback summarization
+        import re
+        sentences = re.split(r'(?<=[\.\?\!])\s', (text or '').replace('\n', ' '))
+        if summary_length == 'short':
+            n = min(2, len(sentences))
+        elif summary_length == 'medium':
+            n = min(5, len(sentences))
+        else:
+            n = min(10, len(sentences))
+        summary = ' '.join(sentences[:n]).strip()
+        notes = [s.strip() for s in sentences[n:n + notes_count]]
+        if not notes:
+            # fallback split by commas
+            notes = [c.strip() for c in (text or '').split(',')][:notes_count]
+        return jsonify({'success': True, 'summary': summary, 'notes': notes, 'material_types': material_types, 'difficulty': difficulty, 'topics': topics, 'instructions': instructions}), 200
+    except Exception as e:
+        logger.error('Generate material error: %s', str(e))
+        return jsonify({'success': False, 'message': 'Internal server error'}), 500
 
 # ... [Keep all existing user/auth routes from previous app.py] ...
 
