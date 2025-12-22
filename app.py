@@ -108,7 +108,7 @@ def token_required(f):
     return decorated
 
 # Gemini AI Helper Functions
-def generate_questions_with_gemini(subject, topics, difficulty, question_types, total_marks):
+def generate_questions_with_gemini(subject, topics, difficulty, question_types, total_marks, context_text=None):
     """Generate questions using Gemini AI"""
     try:
         if not GEMINI_API_KEY:
@@ -124,6 +124,18 @@ def generate_questions_with_gemini(subject, topics, difficulty, question_types, 
         Difficulty Level: {difficulty}
         Question Types Required: {', '.join(question_types)}
         Total Marks: {total_marks}
+        """
+
+        if context_text:
+            prompt += f"""
+            
+            REFERENCE MATERIAL:
+            The questions MUST be based on the following content:
+            {context_text[:10000]} 
+            (Note: Use this material as the primary source for questions)
+            """
+
+        prompt += """
         
         Please generate a comprehensive question paper with:
         1. Clear instructions
@@ -172,9 +184,21 @@ def validate_answer_with_gemini(question, answer, max_marks):
         logger.error(f"Gemini AI validation error: {str(e)}")
         return None, str(e)
 
-def extract_text_from_file(file_content, file_type):
+def extract_text_from_file(file_content, file_type, filename=None):
     """Extract text from uploaded files for processing"""
     try:
+        # Normalize file type based on extension if provided
+        if filename:
+            ext = filename.lower().split('.')[-1]
+            if ext == 'pdf':
+                file_type = 'application/pdf'
+            elif ext in ['docx', 'doc']:
+                file_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            elif ext == 'txt':
+                file_type = 'text/plain'
+            elif ext in ['jpg', 'jpeg', 'png']:
+                file_type = 'image/jpeg' # Generic image type
+
         if file_type == 'application/pdf':
             # Extract text from PDF
             pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
@@ -200,9 +224,12 @@ def extract_text_from_file(file_content, file_type):
             prompt = "Extract all text from this image. If it's handwritten, transcribe it as accurately as possible."
             response = model.generate_content([prompt, image])
             return response.text
+             
+        elif file_type == 'text/plain':
+            return file_content.decode('utf-8', errors='ignore')
             
         else:
-            return "Unsupported file format"
+            return f"Unsupported file format: {file_type}"
             
     except Exception as e:
         logger.error(f"File extraction error: {str(e)}")
@@ -254,8 +281,56 @@ def home():
 @token_required
 def generate_paper(current_user):
     try:
-        data = request.get_json()
-        
+        logger.info(f"Generate Paper Request Content-Type: {request.content_type}")
+        # Check if content type is multipart/form-data
+        if request.content_type.startswith('multipart/form-data'):
+             # Extract data from form
+            logger.info(f"Form Data: {request.form}")
+            logger.info(f"Files: {request.files}")
+            
+            title = request.form.get('title')
+            subject = request.form.get('subject')
+            topics = request.form.get('topics')
+            difficulty = request.form.get('difficulty')
+            total_marks = request.form.get('total_marks')
+            additional_info_raw = request.form.get('additional_info')
+            
+            # Extract question types (can be multiple)
+            question_types = request.form.getlist('question_types')
+            
+            # Construct data object
+            data = {
+                'title': title,
+                'subject': subject,
+                'topics': topics,
+                'difficulty': difficulty,
+                'total_marks': int(total_marks) if total_marks else 100,
+                'question_types': question_types
+            }
+
+            try:
+                data['additional_info'] = json.loads(additional_info_raw) if additional_info_raw else {}
+            except:
+                data['additional_info'] = {}
+
+
+            # Handle Context Material
+            # Priority: 1. Manual text input (context_text), 2. File upload (context_file)
+            context_text = request.form.get('context_text')
+
+            if 'context_file' in request.files and not context_text:
+                file = request.files['context_file']
+                if file.filename != '':
+                    file_content = file.read()
+                    context_text = extract_text_from_file(file_content, file.content_type, file.filename)
+                    if context_text and context_text.startswith('Error') or context_text.startswith('Unsupported'):
+                         return jsonify({'message': f'Failed to process context file: {context_text}'}), 400
+
+        else:
+            # Fallback for JSON requests (legacy support if needed, though frontend sends form-data)
+            data = request.get_json()
+            context_text = None
+
         required_fields = ['title', 'subject', 'topics', 'difficulty', 'question_types', 'total_marks']
         for field in required_fields:
             if field not in data:
@@ -267,7 +342,8 @@ def generate_paper(current_user):
             data['topics'],
             data['difficulty'],
             data['question_types'],
-            data['total_marks']
+            data['total_marks'],
+            context_text
         )
         
         if error:
@@ -343,7 +419,7 @@ def validate_answers(current_user):
             file_type = file.content_type
             
             # Extract text from file
-            extracted_text = extract_text_from_file(file_content, file_type)
+            extracted_text = extract_text_from_file(file_content, file_type, file.filename)
             
             # Process with Gemini AI
             if GEMINI_API_KEY:
@@ -465,6 +541,36 @@ def ai_status():
     }), 200
 
 
+# Extract text from file route
+@app.route('/api/extract-text', methods=['POST'])
+@token_required
+def extract_text_route(current_user):
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'No file uploaded'}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'}), 400
+            
+        file_content = file.read()
+        text = extract_text_from_file(file_content, file.content_type, file.filename)
+        
+        if text and text.startswith('Error'):
+            return jsonify({'success': False, 'message': text}), 400
+            
+        return jsonify({
+            'success': True, 
+            'text': text,
+            'message': 'Text extracted successfully'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Extract text error: {str(e)}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+
+
 # Generate Material route: accepts a single file and returns a summary and short notes
 @app.route('/api/generate-material', methods=['POST'])
 @token_required
@@ -491,8 +597,8 @@ def api_generate_material(current_user):
         instructions = request.form.get('instructions', '')
 
         file_bytes = f.read()
-        text = extract_text_from_file(file_bytes, f.mimetype)
-        if not text or text.startswith('Error'):
+        text = extract_text_from_file(file_bytes, f.mimetype, f.filename)
+        if not text or text.startswith('Error') or text.startswith('Unsupported'):
             # If no text extracted and Gemini not configured, return error
             if not GEMINI_API_KEY:
                 return jsonify({'success': False, 'message': 'Could not extract text from file.'}), 400
@@ -555,16 +661,82 @@ def api_generate_material(current_user):
 # User Registration
 @app.route('/api/register', methods=['POST'])
 def register():
-    # Placeholder for registration logic; keep previous implementation here.
-    # If you have an existing registration flow, paste it here. For now, do nothing.
-    pass
+    try:
+        data = request.get_json()
+        
+        name = data.get('name')
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not name or not email or not password:
+            return jsonify({'message': 'Missing required fields'}), 400
+            
+        # Check if user already exists
+        if users_collection.find_one({'email': email}):
+            return jsonify({'message': 'Email already registered', 'field': 'regEmail'}), 400
+            
+        # Hash password
+        hashed_password = generate_password_hash(password)
+        
+        # Create user
+        new_user = {
+            'name': name,
+            'email': email,
+            'password': hashed_password,
+            'created_at': datetime.datetime.utcnow()
+        }
+        
+        result = users_collection.insert_one(new_user)
+        new_user['_id'] = str(result.inserted_id)
+        del new_user['password']
+        
+        # Generate token
+        token = generate_token(result.inserted_id, email)
+        
+        return jsonify({
+            'message': 'Registration successful',
+            'user': new_user,
+            'token': token
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Registration error: {str(e)}")
+        return jsonify({'message': 'Server error occurred'}), 500
 
 # User Login
 @app.route('/api/login', methods=['POST'])
 def login():
-    # Placeholder for login logic; keep previous implementation here.
-    # If you have an existing login flow, paste it here. For now, do nothing.
-    pass
+    try:
+        data = request.get_json()
+        
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not email or not password:
+            return jsonify({'message': 'Missing email or password'}), 400
+            
+        user = users_collection.find_one({'email': email})
+        
+        if not user:
+            return jsonify({'message': 'User not found'}), 401
+            
+        if check_password_hash(user['password'], password):
+            token = generate_token(user['_id'], email)
+            
+            user['_id'] = str(user['_id'])
+            del user['password']
+            
+            return jsonify({
+                'message': 'Login successful',
+                'user': user,
+                'token': token
+            }), 200
+        else:
+            return jsonify({'message': 'Invalid password'}), 401
+            
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return jsonify({'message': 'Server error occurred'}), 500
 
 # Forgot Password
 @app.route('/api/forgot-password', methods=['POST'])

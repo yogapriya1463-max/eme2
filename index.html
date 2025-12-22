@@ -1,11 +1,14 @@
+[file content begin]
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Automated AI Question Paper Generator</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- Header -->
     <header>
@@ -41,15 +44,14 @@
             <form id="loginForm">
                 <div class="form-group">
                     <label for="loginEmail">Email Address</label>
-                    <input type="email" id="loginEmail" class="form-control" 
-                           placeholder="Enter your email" required>
+                    <input type="email" id="loginEmail" class="form-control" placeholder="Enter your email" required>
                     <div class="error-message" id="loginEmailError"></div>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" class="form-control" 
-                           placeholder="Enter your password" required>
+                    <input type="password" id="loginPassword" class="form-control" placeholder="Enter your password"
+                        required>
                     <div class="error-message" id="loginPasswordError"></div>
                 </div>
 
@@ -83,40 +85,39 @@
             <form id="registerForm">
                 <div class="form-group">
                     <label for="regName">Full Name</label>
-                    <input type="text" id="regName" class="form-control" 
-                           placeholder="Enter your full name" required>
+                    <input type="text" id="regName" class="form-control" placeholder="Enter your full name" required>
                     <div class="error-message" id="regNameError"></div>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="regEmail">Email Address</label>
-                    <input type="email" id="regEmail" class="form-control" 
-                           placeholder="Enter your email" required>
+                    <input type="email" id="regEmail" class="form-control" placeholder="Enter your email" required>
                     <div class="error-message" id="regEmailError"></div>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="regPassword">Password</label>
-                    <input type="password" id="regPassword" class="form-control" 
-                           placeholder="Create a password (min. 6 characters)" required
-                           minlength="6">
+                    <input type="password" id="regPassword" class="form-control"
+                        placeholder="Create a password (min. 6 characters)" required minlength="6">
                     <div class="password-strength">
                         <div class="strength-bar" id="passwordStrength"></div>
                     </div>
                     <div class="error-message" id="regPasswordError"></div>
                 </div>
-                
+
                 <div class="form-group">
                     <label for="regConfirmPassword">Confirm Password</label>
-                    <input type="password" id="regConfirmPassword" class="form-control" 
-                           placeholder="Confirm your password" required>
+                    <input type="password" id="regConfirmPassword" class="form-control"
+                        placeholder="Confirm your password" required>
                     <div class="error-message" id="regConfirmPasswordError"></div>
                 </div>
 
                 <div class="form-group">
                     <label style="display: flex; align-items: flex-start; font-size: 0.9rem;">
-                        <input type="checkbox" id="agreeTerms" style="margin-right: 0.5rem; margin-top: 0.2rem;" required>
-                        I agree to the <a href="#" style="color: #0366d6;">Terms of Service</a> and <a href="#" style="color: #0366d6;">Privacy Policy</a>
+                        <input type="checkbox" id="agreeTerms" style="margin-right: 0.5rem; margin-top: 0.2rem;"
+                            required>
+                        I agree to the <a href="#" style="color: #0366d6;">Terms of Service</a> and <a href="#"
+                            style="color: #0366d6;">Privacy Policy</a>
                     </label>
                     <div class="error-message" id="termsError"></div>
                 </div>
@@ -143,8 +144,7 @@
             <form id="forgotPasswordForm">
                 <div class="form-group">
                     <label for="forgotEmail">Email Address</label>
-                    <input type="email" id="forgotEmail" class="form-control" 
-                           placeholder="Enter your email" required>
+                    <input type="email" id="forgotEmail" class="form-control" placeholder="Enter your email" required>
                     <div class="error-message" id="forgotEmailError"></div>
                     <div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
                         Enter your email address and we'll send you a password reset link.
@@ -162,7 +162,7 @@
             </div>
         </div>
     </div>
-    
+
 
     <!-- Main Content -->
     <main>
@@ -171,7 +171,8 @@
             <div class="home-container">
                 <div class="hero">
                     <h1>Automated AI Question Paper Generator</h1>
-                    <p>Create professional question papers in seconds. Customize subjects, topics, difficulty levels, and question types to generate perfect assessments.</p>
+                    <p>Create professional question papers in seconds. Customize subjects, topics, difficulty levels,
+                        and question types to generate perfect assessments.</p>
                 </div>
 
                 <div id="loginRequired" class="login-required">
@@ -184,7 +185,7 @@
                 </div>
 
                 <div id="welcomeSection" class="login-required" style="display: none;">
-                    <h2>Welcome back! 👋</h2>
+                    <h2 id="welcomeMessage">Welcome back! 👋</h2>
                     <p>You're now logged in. Access all features to create and manage question papers.</p>
                     <div class="action-buttons" style="margin-top: 2rem;">
                         <button id="startGenerating" class="btn btn-primary">📄 Generate Question Paper</button>
@@ -201,7 +202,7 @@
                 <div class="hero">
                     <h1>Generate Question Paper</h1>
                     <p>Configure your question paper settings and let AI generate a perfect assessment.</p>
-                    
+
                     <!-- Section Navigation for Generate Page -->
                     <div class="section-navigation">
                         <button id="homeFromGenerate" class="btn btn-secondary">🏠 Home</button>
@@ -209,20 +210,20 @@
                         <button id="validateFromGenerate" class="btn btn-success">✓ Validate Answers</button>
                     </div>
                 </div>
-                
+
                 <!-- Content for Generate Page -->
                 <div class="form-container">
                     <h3 style="color: #0366d6; margin-bottom: 1.5rem;">📋 Question Paper Configuration</h3>
-                    
+
                     <!-- Paper Details Form -->
                     <form id="questionPaperForm">
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="paperTitle">📝 Paper Title</label>
-                                <input type="text" id="paperTitle" class="form-control" 
-                                       placeholder="Enter paper title (e.g., Final Exam 2024)" required>
+                                <input type="text" id="paperTitle" class="form-control"
+                                    placeholder="Enter paper title (e.g., Final Exam 2024)" required>
                             </div>
-                            
+
                             <div class="form-group">
                                 <label for="paperSubject">📚 Subject</label>
                                 <select id="paperSubject" class="form-control" required>
@@ -246,17 +247,17 @@
                                 <label for="paperDate">📅 Exam Date</label>
                                 <input type="date" id="paperDate" class="form-control" required>
                             </div>
-                            
+
                             <div class="form-group">
                                 <label for="paperTime">⏰ Exam Duration (minutes)</label>
-                                <input type="number" id="paperTime" class="form-control" 
-                                       placeholder="Enter duration in minutes" min="30" max="300" required>
+                                <input type="number" id="paperTime" class="form-control"
+                                    placeholder="Enter duration in minutes" min="30" max="300" required>
                             </div>
-                            
+
                             <div class="form-group">
                                 <label for="totalMarks">🎯 Total Marks</label>
-                                <input type="number" id="totalMarks" class="form-control" 
-                                       placeholder="Enter total marks" min="10" max="200" required>
+                                <input type="number" id="totalMarks" class="form-control"
+                                    placeholder="Enter total marks" min="10" max="200" required>
                             </div>
                         </div>
 
@@ -302,38 +303,57 @@
 
                         <div class="form-group">
                             <label for="paperTopics">📖 Topics (comma separated)</label>
-                            <textarea id="paperTopics" class="form-control" 
-                                      rows="3" 
-                                      placeholder="Enter topics, separated by commas (e.g., Algebra, Geometry, Calculus)"></textarea>
+                            <textarea id="paperTopics" class="form-control" rows="3"
+                                placeholder="Enter topics, separated by commas (e.g., Algebra, Geometry, Calculus)"></textarea>
                         </div>
+
 
                         <div class="form-group">
                             <label for="additionalInstructions">📝 Additional Instructions</label>
-                            <textarea id="additionalInstructions" class="form-control" 
-                                      rows="3" 
-                                      placeholder="Any special instructions for the question paper"></textarea>
+                            <textarea id="additionalInstructions" class="form-control" rows="3"
+                                placeholder="Any special instructions for the question paper"></textarea>
                         </div>
 
-                        <!-- Action Buttons -->
+                        <!-- Action Buttons with FIXED Source Material Upload -->
                         <div class="action-container">
-                            <div class="file-upload" id="uploadTemplateBtn">
-                                <div style="pointer-events: none;">
-                                    <div>📤</div>
-                                    <h4>Upload Template</h4>
-                                    <p>Upload existing question paper template (Optional)</p>
-                                    <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX</p>
+                            <!-- FIXED: Source Material Upload Section -->
+                            <div style="width: 100%; margin-bottom: 1.5rem;">
+                                <div class="file-upload" id="uploadSourceBtn" style="cursor: pointer;">
+                                    <div style="pointer-events: none; text-align: center;">
+                                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📁</div>
+                                        <h4 style="margin-bottom: 0.5rem; color: #0366d6;">Upload Source Material</h4>
+                                        <p style="margin-bottom: 0.5rem; color: #666;">Upload material to generate questions from (Optional)</p>
+                                        <p style="font-size: 0.9rem; color: #999;">Supported: PDF, DOC, DOCX, TXT (Max 10MB)</p>
+                                    </div>
+                                    <input type="file" id="sourceUpload" accept=".pdf,.doc,.docx,.txt" style="display: none;">
                                 </div>
-                                <input type="file" id="templateUpload" accept=".pdf,.doc,.docx">
+                                
+                                <div id="sourceFileInfo" style="display: none; width: 100%; margin-top: 1rem;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
+                                        <span style="font-size: 1.2rem;">📄</span>
+                                        <div style="flex-grow: 1;">
+                                            <div style="font-weight: 600;" id="sourceFileName">Uploaded file</div>
+                                            <div style="font-size: 0.85rem; color: #666;" id="sourceFileSize"></div>
+                                        </div>
+                                        <button type="button" id="removeSourceBtn"
+                                            style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem; padding: 0.5rem; border-radius: 4px; transition: background 0.3s;"
+                                            title="Remove file" 
+                                            onmouseover="this.style.background='#f8d7da'" 
+                                            onmouseout="this.style.background='none'">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div style="display: flex; gap: 1rem;">
-                                <button type="button" id="generatePaperBtn" class="btn btn-primary">
+                            <div style="display: flex; gap: 1rem; width: 100%;">
+                                <button type="button" id="generatePaperBtn" class="btn btn-primary" style="flex: 1;">
                                     🚀 Generate Paper
                                 </button>
-                                <button type="button" id="downloadPaperBtn" class="btn btn-success" disabled>
+                                <button type="button" id="downloadPaperBtn" class="btn btn-success" disabled style="flex: 1;">
                                     ⬇️ Download PDF
                                 </button>
-                                <button type="button" id="resetFormBtn" class="btn btn-warning">
+                                <button type="button" id="resetFormBtn" class="btn btn-warning" style="flex: 1;">
                                     🔄 Reset Form
                                 </button>
                             </div>
@@ -343,7 +363,8 @@
                     <!-- Preview Section -->
                     <div id="paperPreview" class="preview-container" style="display: none;">
                         <h4>📄 Generated Paper Preview</h4>
-                        <div id="previewContent" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
+                        <div id="previewContent"
+                            style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
                             <!-- Preview content will be inserted here -->
                         </div>
                     </div>
@@ -353,7 +374,8 @@
                 <div class="section-navigation" style="margin-top: 2rem;">
                     <button id="bottomHomeFromGenerate" class="btn btn-secondary">🏠 Home</button>
                     <button id="bottomValidateFromGenerate" class="btn btn-success">✓ Validate Answers</button>
-                        <button id="bottomGenerateMaterialFromGenerate" class="btn btn-primary">🧾 Generate Material</button>
+                    <button id="bottomGenerateMaterialFromGenerate" class="btn btn-primary">🧾 Generate
+                        Material</button>
                 </div>
             </div>
         </section>
@@ -383,13 +405,16 @@
                             <input type="file" id="materialUpload" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
                         </div>
                         <div id="materialFileInfo" style="margin-top: 0.5rem; display: none;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
+                            <div
+                                style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
                                 <span style="font-size: 1.2rem;">📄</span>
                                 <div>
                                     <div style="font-weight: 600;" id="materialFileName">Uploaded file</div>
                                     <div style="font-size: 0.85rem; color: #666;" id="materialFileSize"></div>
                                 </div>
-                                <button id="removeMaterialBtn" style="margin-left: auto; background: none; border: none; color: #dc3545; cursor: pointer;" title="Remove material">🗑️</button>
+                                <button id="removeMaterialBtn"
+                                    style="margin-left: auto; background: none; border: none; color: #dc3545; cursor: pointer;"
+                                    title="Remove material">🗑️</button>
                             </div>
                         </div>
                     </div>
@@ -445,11 +470,13 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="materialTopics">📖 Topics (comma separated)</label>
-                            <input type="text" id="materialTopics" class="form-control" placeholder="e.g., Algebra, Calculus">
+                            <input type="text" id="materialTopics" class="form-control"
+                                placeholder="e.g., Algebra, Calculus">
                         </div>
                         <div class="form-group">
                             <label for="materialInstructions">📝 Additional Instructions</label>
-                            <textarea id="materialInstructions" class="form-control" rows="2" placeholder="Any specific instructions for the material..."></textarea>
+                            <textarea id="materialInstructions" class="form-control" rows="2"
+                                placeholder="Any specific instructions for the material..."></textarea>
                         </div>
                     </div>
                     <div class="action-container">
@@ -462,7 +489,8 @@
 
                     <div id="materialPreview" class="preview-container" style="display:none; margin-top:1.5rem;">
                         <h4>📚 Generated Material</h4>
-                        <div id="materialPreviewContent" style="background:white; padding:1rem; border-radius:6px; border: 1px solid #dee2e6;">
+                        <div id="materialPreviewContent"
+                            style="background:white; padding:1rem; border-radius:6px; border: 1px solid #dee2e6;">
                         </div>
                     </div>
                 </div>
@@ -475,7 +503,7 @@
                 <div class="hero">
                     <h1>Validate Answer Papers</h1>
                     <p>Upload answer key and answer sheets for AI-powered validation and grading.</p>
-                    
+
                     <!-- Section Navigation for Validate Page -->
                     <div class="section-navigation">
                         <button id="homeFromValidate" class="btn btn-secondary">🏠 Home</button>
@@ -483,22 +511,22 @@
                         <button id="generateMaterialFromValidate" class="btn btn-primary">🧾 Generate Material</button>
                     </div>
                 </div>
-                
+
                 <!-- Content for Validate Page -->
                 <div class="form-container">
                     <h3 style="color: #0366d6; margin-bottom: 1.5rem;">✓ Answer Paper Validation with Answer Key</h3>
-                    
+
                     <div class="form-row">
                         <div class="form-group">
                             <label for="answerPaperTitle">📝 Answer Paper Title</label>
-                            <input type="text" id="answerPaperTitle" class="form-control" 
-                                   placeholder="Enter answer paper title" required>
+                            <input type="text" id="answerPaperTitle" class="form-control"
+                                placeholder="Enter answer paper title" required>
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="studentCount">👥 Number of Students</label>
-                            <input type="number" id="studentCount" class="form-control" 
-                                   placeholder="Number of answer sheets" min="1" max="100" required>
+                            <input type="number" id="studentCount" class="form-control"
+                                placeholder="Number of answer sheets" min="1" max="100" required>
                         </div>
                     </div>
 
@@ -515,13 +543,16 @@
                             <input type="file" id="answerKeyUpload" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
                         </div>
                         <div id="answerKeyInfo" style="margin-top: 0.5rem; display: none;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
+                            <div
+                                style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
                                 <span style="font-size: 1.2rem;">🗝️</span>
                                 <div>
                                     <div style="font-weight: 600;" id="answerKeyName">Answer Key</div>
                                     <div style="font-size: 0.85rem; color: #666;" id="answerKeySize"></div>
                                 </div>
-                                <button id="removeAnswerKeyBtn" style="margin-left: auto; background: none; border: none; color: #dc3545; cursor: pointer;" title="Remove answer key">🗑️</button>
+                                <button id="removeAnswerKeyBtn"
+                                    style="margin-left: auto; background: none; border: none; color: #dc3545; cursor: pointer;"
+                                    title="Remove answer key">🗑️</button>
                             </div>
                         </div>
                     </div>
@@ -552,9 +583,9 @@
                         <button type="button" id="clearFilesBtn" class="btn btn-warning">
                             🗑️ Clear All Files
                         </button>
-                         <button type="button" id="resetValidateFormBtn" class="btn btn-warning">
+                        <button type="button" id="resetValidateFormBtn" class="btn btn-warning">
                             🔄 Reset Form
-                            </button>
+                        </button>
                     </div>
 
                     <!-- Validation Progress -->
@@ -566,7 +597,8 @@
                                 <span id="progressPercent">0%</span>
                             </div>
                             <div style="height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden;">
-                                <div id="progressBar" style="height: 100%; background: #0366d6; width: 0%; transition: width 0.3s;"></div>
+                                <div id="progressBar"
+                                    style="height: 100%; background: #0366d6; width: 0%; transition: width 0.3s;"></div>
                             </div>
                             <div id="progressStatus" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
                                 Waiting to start...
@@ -577,7 +609,8 @@
                     <!-- Results Preview -->
                     <div id="validationResults" class="preview-container" style="display: none;">
                         <h4>📊 Validation Results with Answer Key</h4>
-                        <div id="resultsContent" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
+                        <div id="resultsContent"
+                            style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
                             <!-- Results will be inserted here -->
                         </div>
                     </div>
@@ -594,4 +627,6 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
+[file content end]
