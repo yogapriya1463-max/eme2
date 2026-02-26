@@ -1,4 +1,3 @@
-[file content begin]
 <!DOCTYPE html>
 <html lang="en">
 
@@ -90,7 +89,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="regEmail">Email Address</label>
+                    <label for="regEmail">Email Address</label> 
                     <input type="email" id="regEmail" class="form-control" placeholder="Enter your email" required>
                     <div class="error-message" id="regEmailError"></div>
                 </div>
@@ -322,14 +321,18 @@
                                     <div style="pointer-events: none; text-align: center;">
                                         <div style="font-size: 2rem; margin-bottom: 0.5rem;">📁</div>
                                         <h4 style="margin-bottom: 0.5rem; color: #0366d6;">Upload Source Material</h4>
-                                        <p style="margin-bottom: 0.5rem; color: #666;">Upload material to generate questions from (Optional)</p>
-                                        <p style="font-size: 0.9rem; color: #999;">Supported: PDF, DOC, DOCX, TXT (Max 10MB)</p>
+                                        <p style="margin-bottom: 0.5rem; color: #666;">Upload material to generate
+                                            questions from (Optional)</p>
+                                        <p style="font-size: 0.9rem; color: #999;">Supported: PDF, DOC, DOCX, TXT (Max
+                                            10MB)</p>
                                     </div>
-                                    <input type="file" id="sourceUpload" accept=".pdf,.doc,.docx,.txt" style="display: none;">
+                                    <input type="file" id="sourceUpload" accept=".pdf,.doc,.docx,.txt"
+                                        style="display: none;">
                                 </div>
-                                
+
                                 <div id="sourceFileInfo" style="display: none; width: 100%; margin-top: 1rem;">
-                                    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
+                                    <div
+                                        style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
                                         <span style="font-size: 1.2rem;">📄</span>
                                         <div style="flex-grow: 1;">
                                             <div style="font-weight: 600;" id="sourceFileName">Uploaded file</div>
@@ -337,8 +340,7 @@
                                         </div>
                                         <button type="button" id="removeSourceBtn"
                                             style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem; padding: 0.5rem; border-radius: 4px; transition: background 0.3s;"
-                                            title="Remove file" 
-                                            onmouseover="this.style.background='#f8d7da'" 
+                                            title="Remove file" onmouseover="this.style.background='#f8d7da'"
                                             onmouseout="this.style.background='none'">
                                             🗑️
                                         </button>
@@ -350,7 +352,8 @@
                                 <button type="button" id="generatePaperBtn" class="btn btn-primary" style="flex: 1;">
                                     🚀 Generate Paper
                                 </button>
-                                <button type="button" id="downloadPaperBtn" class="btn btn-success" disabled style="flex: 1;">
+                                <button type="button" id="downloadPaperBtn" class="btn btn-success" disabled
+                                    style="flex: 1;">
                                     ⬇️ Download PDF
                                 </button>
                                 <button type="button" id="resetFormBtn" class="btn btn-warning" style="flex: 1;">
@@ -610,7 +613,7 @@
                     <div id="validationResults" class="preview-container" style="display: none;">
                         <h4>📊 Validation Results with Answer Key</h4>
                         <div id="resultsContent"
-                            style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
+                            style="background: rgb(127, 222, 248); padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
                             <!-- Results will be inserted here -->
                         </div>
                     </div>
@@ -629,4 +632,3 @@
 </body>
 
 </html>
-[file content end]

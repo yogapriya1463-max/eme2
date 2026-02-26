@@ -1,5 +1,4 @@
-[file content begin]
-// app.js - FIXED LOGIN AND SOURCE MATERIAL UPLOAD
+// app.js - FIXED LOGIN AND REGISTRATION
 // (Replace the entire app.js content with this)
 
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -662,8 +661,6 @@ function resetGenerateForm() {
     const paperPreview = document.getElementById('paperPreview');
     const downloadPaperBtn = document.getElementById('downloadPaperBtn');
     const paperDateInput = document.getElementById('paperDate');
-    const templateUpload = document.getElementById('templateUpload');
-    const uploadTemplateBtn = document.getElementById('uploadTemplateBtn');
 
     // Reset date to today
     paperDateInput.valueAsDate = new Date();
@@ -760,6 +757,15 @@ function resetValidateForm() {
     showToast('Validate form has been reset', 'info');
 }
 
+// Helper function to format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 // Generate Paper Functions
 async function generatePaperPreview() {
     // Validate form
@@ -787,8 +793,8 @@ async function generatePaperPreview() {
 
     // Get selected question types
     const questionTypes = [];
-    document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-        questionTypes.push(cb.nextElementSibling.textContent);
+    document.querySelectorAll('#questionPaperForm input[type="checkbox"]:checked').forEach(cb => {
+        questionTypes.push(cb.value);
     });
 
     if (questionTypes.length === 0) {
@@ -814,11 +820,10 @@ async function generatePaperPreview() {
                     Subject: ${subject}
                     
                     (Mock Content Generated)
-                ` // Simplified for mock
+                    ${uploadedContextFile ? `\nBased on file: ${uploadedContextFile.name}` : ''}
+                `
             };
-            // For mock we just pass the input params + mock content
         } else {
-            // Real API Call
             // Real API Call with FormData
             const formData = new FormData();
             formData.append('title', title);
@@ -827,35 +832,67 @@ async function generatePaperPreview() {
             formData.append('difficulty', difficulty);
             formData.append('total_marks', marks);
 
-            // Append question types individually or as JSON string depending on backend expectation. 
-            // Flask request.form.getlist works if we append multiple times with same key.
+            // Append question types
             questionTypes.forEach(qt => formData.append('question_types', qt));
 
             // Additional info as JSON string
-            formData.append('additional_info', JSON.stringify({ date, time, instructions }));
+            const additionalInfo = {
+                date: date,
+                time: time,
+                instructions: instructions,
+                generated_at: new Date().toISOString()
+            };
+            formData.append('additional_info', JSON.stringify(additionalInfo));
 
             // Append context file if exists
             if (uploadedContextFile) {
                 formData.append('context_file', uploadedContextFile);
+                console.log(`Uploading context file: ${uploadedContextFile.name}, size: ${uploadedContextFile.size} bytes`);
+            }
+
+            console.log('Sending request to generate paper...');
+            console.log('FormData entries:');
+            for (let [key, value] of formData.entries()) {
+                if (value instanceof File) {
+                    console.log(`${key}: File - ${value.name} (${value.size} bytes)`);
+                } else {
+                    console.log(`${key}: ${value}`);
+                }
             }
 
             const response = await fetch(`${API_BASE_URL}/generate-paper`, {
                 method: 'POST',
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : ''
+                    // Don't set Content-Type header for FormData - browser will set it with boundary
                 },
                 body: formData
             });
 
-            const data = await response.json();
-
+            console.log('Response status:', response.status);
+            
             if (!response.ok) {
-                throw new Error(data.message || 'Failed to generate paper');
+                const errorText = await response.text();
+                console.error('Response error:', errorText);
+                let errorMessage = 'Failed to generate paper';
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch (e) {
+                    // If not JSON, use the text
+                    if (errorText) errorMessage = errorText.substring(0, 200);
+                }
+                throw new Error(errorMessage);
             }
+
+            const data = await response.json();
+            console.log('Success response:', data);
 
             paperData = {
                 title, subject, date, time, marks, difficulty, topics, instructions, questionTypes,
-                content: data.content // Use AI generated content
+                content: data.content,
+                ai_used: data.ai_used,
+                used_context: data.used_context
             };
         }
 
@@ -863,11 +900,18 @@ async function generatePaperPreview() {
         generatedPaperContent = paperData;
 
         renderPaperPreview(paperData);
-        showToast('Question paper generated successfully!', 'success');
+        
+        if (paperData.used_context) {
+            showToast('Question paper generated successfully from uploaded material!', 'success');
+        } else if (paperData.ai_used) {
+            showToast('Question paper generated successfully using AI!', 'success');
+        } else {
+            showToast('Question paper generated successfully!', 'success');
+        }
 
     } catch (error) {
         console.error('Generate paper error:', error);
-        showToast(error.message || 'An error occurred', 'error');
+        showToast(error.message || 'An error occurred while generating the paper. Please try again.', 'error');
     } finally {
         generatePaperBtn.disabled = false;
         generatePaperBtn.innerHTML = originalBtnText;
@@ -875,15 +919,18 @@ async function generatePaperPreview() {
 }
 
 function renderPaperPreview(data) {
-    // Determine how to display the content. 
-    // If it comes from AI, it's likely markdown or plain text. 
-    // We'll wrap it in a <pre> or format it if possible.
-
-    // Simple formatter for the preview
+    // Determine how to display the content
     const formattedContent = data.content.replace(/\n/g, '<br>');
 
     const previewHTML = `
         <h5 style="color: #0366d6; margin-bottom: 1rem; border-bottom: 2px solid #0366d6; padding-bottom: 0.5rem;">${data.title}</h5>
+        
+        ${data.ai_used !== false ? `
+        <div style="margin-bottom: 1rem; padding: 0.75rem; background: #d4edda; border-radius: 6px; border-left: 4px solid #28a745;">
+            <strong>✓ AI Generated</strong> ${data.used_context ? 'using uploaded material' : 'based on your specifications'}
+        </div>
+        ` : ''}
+        
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
             <div><strong>Subject:</strong> ${data.subject}</div>
             <div><strong>Date:</strong> ${data.date}</div>
@@ -898,6 +945,12 @@ function renderPaperPreview(data) {
         <div style="background: #ffffff; padding: 1.5rem; border: 1px solid #dee2e6; border-radius: 6px; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace;">
             ${data.content}
         </div>
+        
+        ${uploadedContextFile ? `
+        <div style="margin-top: 1rem; padding: 0.75rem; background: #f0f7ff; border-radius: 6px; border-left: 4px solid #0366d6;">
+            <strong>Source Material:</strong> ${uploadedContextFile.name} (${formatFileSize(uploadedContextFile.size)})
+        </div>
+        ` : ''}
     `;
 
     const previewContent = document.getElementById('previewContent');
@@ -924,7 +977,7 @@ function downloadGeneratedPaper() {
     showToast('Preparing download...', 'info');
 
     // Create a text content for the paper
-    const paperContent = `
+    let paperContent = `
 QUESTION PAPER
 ====================================
 Title: ${generatedPaperContent.title}
@@ -934,28 +987,20 @@ Duration: ${generatedPaperContent.time} minutes
 Total Marks: ${generatedPaperContent.marks}
 Difficulty: ${generatedPaperContent.difficulty}
 Topics: ${generatedPaperContent.topics}
+Question Types: ${generatedPaperContent.questionTypes.join(', ')}
 
 INSTRUCTIONS:
 ${generatedPaperContent.instructions}
 
-QUESTION TYPES INCLUDED:
-${generatedPaperContent.questionTypes.join(', ')}
+${generatedPaperContent.ai_used ? `Generated using AI: ${generatedPaperContent.used_context ? 'with uploaded material' : 'based on specifications'}` : ''}
 
-SAMPLE QUESTIONS:
-1. What is the capital of France? (One Word) [1 Mark]
-2. Explain the theory of relativity. (Essay) [10 Marks]
-3. Solve: 2x + 5 = 15 (Short Answer) [5 Marks]
-4. Which planet is known as the Red Planet? (MCQ) [1 Mark]
-   a) Earth
-   b) Mars
-   c) Jupiter
-   d) Venus
-5. State whether true or false: The sun revolves around the earth. (True/False) [1 Mark]
-
+====================================
+${generatedPaperContent.content}
 ====================================
 Generated by AI Question Generator
 Date: ${new Date().toLocaleDateString()}
 Time: ${new Date().toLocaleTimeString()}
+${uploadedContextFile ? `Source Material: ${uploadedContextFile.name}` : ''}
     `;
 
     // Create blob with the paper content
@@ -965,7 +1010,8 @@ Time: ${new Date().toLocaleTimeString()}
     // Create a temporary link element
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${generatedPaperContent.title.replace(/\s+/g, '_')}_${generatedPaperContent.subject}.txt`;
+    const fileName = `${generatedPaperContent.title.replace(/\s+/g, '_')}_${generatedPaperContent.subject}_${new Date().toISOString().split('T')[0]}.txt`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
 
@@ -1036,15 +1082,6 @@ function handleSourceUpload(event) {
         console.error('Source file info elements not found');
         showToast('Error displaying file information', 'error');
     }
-}
-
-// Helper function to format file size
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 function removeSourceFile() {
@@ -1907,8 +1944,6 @@ function setupEventListeners() {
     const generatePaperBtn = document.getElementById('generatePaperBtn');
     const downloadPaperBtn = document.getElementById('downloadPaperBtn');
     const resetFormBtn = document.getElementById('resetFormBtn');
-    const templateUpload = document.getElementById('templateUpload');
-    const uploadTemplateBtn = document.getElementById('uploadTemplateBtn');
 
     if (generatePaperBtn) generatePaperBtn.addEventListener('click', generatePaperPreview);
     if (downloadPaperBtn) downloadPaperBtn.addEventListener('click', downloadGeneratedPaper);
@@ -1917,10 +1952,6 @@ function setupEventListeners() {
             resetGenerateForm();
         }
     });
-    if (uploadTemplateBtn) uploadTemplateBtn.addEventListener('click', () => {
-        templateUpload.click();
-    });
-    if (templateUpload) templateUpload.addEventListener('change', handleTemplateUpload);
 
     // Validate Answers functionality
     const startValidationBtn = document.getElementById('startValidationBtn');
@@ -2089,20 +2120,6 @@ function setupEventListeners() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing app...');
     init();
-    
-    // Additional manual binding for source upload (in case setupEventListeners doesn't catch it)
-    const uploadSourceBtn = document.getElementById('uploadSourceBtn');
-    const sourceUpload = document.getElementById('sourceUpload');
-    const removeSourceBtn = document.getElementById('removeSourceBtn');
-    
-    if (uploadSourceBtn && sourceUpload && !uploadSourceBtn.hasEventListener) {
-        console.log('Manual binding for source upload');
-        uploadSourceBtn.hasEventListener = true;
-        uploadSourceBtn.addEventListener('click', function() {
-            console.log('Manual: Upload source button clicked');
-            sourceUpload.click();
-        });
-    }
 });
 
 // Helpers for material generation UI
@@ -2235,18 +2252,25 @@ function downloadMaterial() {
     URL.revokeObjectURL(url);
 }
 
+// UPDATED: mockGenerateMaterial function to handle all parameters properly
 async function mockGenerateMaterial(file, summaryLength, notesCount, materialTypes = [], difficulty = 'medium', topics = '', instructions = '') {
-    const ext = (file.name || '').split('.').pop().toLowerCase();
-    if (ext === 'txt') {
-        const text = await file.text();
-        // Pass along additional options to mock summarizer (it can tag difficulty/topics)
-        const result = mockSummarizeText(text, summaryLength, notesCount);
-        result.settings = { materialTypes, difficulty, topics, instructions };
-        return result;
-    }
-    const simpleSummary = `This is a short summary (${difficulty}) of the uploaded file named ${file.name}.\nTypes: ${materialTypes.join(', ') || 'summary'}\nTopics: ${topics}`;
-    const notes = Array.from({ length: Math.max(1, notesCount) }, (_, i) => `Note ${i + 1}: Key point about ${file.name}`);
-    return { success: true, summary: simpleSummary, notes };
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate delay
+    
+    // Simple mock response with all parameters
+    const simpleSummary = `This is a ${summaryLength} summary (${difficulty} difficulty) of the uploaded file "${file.name}".\nMaterial Types: ${materialTypes.join(', ') || 'summary'}\nTopics: ${topics || 'General'}\nInstructions: ${instructions || 'None'}`;
+    const notes = Array.from({ length: Math.max(1, notesCount) }, (_, i) => 
+        `Note ${i + 1}: Key point about ${file.name} (${difficulty} difficulty)`
+    );
+    
+    return { 
+        success: true, 
+        summary: simpleSummary, 
+        notes: notes,
+        material_types: materialTypes,
+        difficulty: difficulty,
+        topics: topics,
+        instructions: instructions
+    };
 }
 
 function mockSummarizeText(text, summaryLength, notesCount) {
@@ -2260,27 +2284,44 @@ function mockSummarizeText(text, summaryLength, notesCount) {
     return { success: true, summary, notes };
 }
 
+// UPDATED: generateMaterial function with proper URL and error handling
 async function generateMaterial() {
     const generateBtn = document.getElementById('generateMaterialBtn');
     const downloadBtn = document.getElementById('downloadMaterialBtn');
     const summaryLength = document.getElementById('summaryLength').value;
     const notesCount = parseInt(document.getElementById('notesCount').value || '5', 10);
+    
+    // Get material types
     const materialTypes = [];
+    const mt_oneword = document.getElementById('mt_oneword');
+    const mt_summary = document.getElementById('mt_summary');
+    const mt_2marks = document.getElementById('mt_2marks');
+    const mt_long = document.getElementById('mt_long');
+    const mt_essay = document.getElementById('mt_essay');
+    
     if (mt_oneword && mt_oneword.checked) materialTypes.push(mt_oneword.value);
     if (mt_summary && mt_summary.checked) materialTypes.push(mt_summary.value);
     if (mt_2marks && mt_2marks.checked) materialTypes.push(mt_2marks.value);
     if (mt_long && mt_long.checked) materialTypes.push(mt_long.value);
     if (mt_essay && mt_essay.checked) materialTypes.push(mt_essay.value);
-    const difficulty = (materialDifficulty && materialDifficulty.value) || 'medium';
-    const topics = (materialTopics && materialTopics.value) || '';
-    const instructions = (materialInstructions && materialInstructions.value) || '';
+    
+    const difficulty = (document.getElementById('materialDifficulty') && document.getElementById('materialDifficulty').value) || 'medium';
+    const topics = (document.getElementById('materialTopics') && document.getElementById('materialTopics').value) || '';
+    const instructions = (document.getElementById('materialInstructions') && document.getElementById('materialInstructions').value) || '';
+    
     if (!uploadedMaterialFile) {
         showToast('Please upload a file first', 'error');
         return;
     }
+    
+    // Show loading state
+    const originalBtnText = generateBtn.innerHTML;
     generateBtn.disabled = true;
+    generateBtn.innerHTML = '<span class="loading"></span> Generating...';
+    
     try {
         let response;
+        
         if (USE_MOCK_API) {
             response = await mockGenerateMaterial(uploadedMaterialFile, summaryLength, notesCount, materialTypes, difficulty, topics, instructions);
         } else {
@@ -2292,13 +2333,31 @@ async function generateMaterial() {
             fd.append('difficulty', difficulty);
             fd.append('topics', topics);
             fd.append('instructions', instructions);
-            const resp = await fetch(`${API_BASE_URL}/generate-material`, {
+            
+            console.log('Sending request to generate material...');
+            
+            const resp = await fetch(`${API_BASE_URL}/generate-material`, {  // FIXED: Using API_BASE_URL
                 method: 'POST',
                 body: fd,
                 headers: token ? { 'Authorization': 'Bearer ' + token } : {}
             });
+            
+            if (!resp.ok) {
+                const errorText = await resp.text();
+                console.error('Response error:', errorText);
+                let errorMessage = 'Failed to generate material';
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch (e) {
+                    if (errorText) errorMessage = errorText.substring(0, 200);
+                }
+                throw new Error(errorMessage);
+            }
+            
             response = await resp.json();
         }
+        
         if (response && response.success) {
             generatedMaterial = response;
             displayGeneratedMaterial(response);
@@ -2309,9 +2368,11 @@ async function generateMaterial() {
         }
     } catch (err) {
         console.error('Generate Material error:', err);
-        showToast('An error occurred while generating material', 'error');
+        showToast(err.message || 'An error occurred while generating material', 'error');
     } finally {
+        // Reset button state
         generateBtn.disabled = false;
+        generateBtn.innerHTML = originalBtnText;
     }
 }
 
@@ -2323,4 +2384,3 @@ function handleTemplateUpload(event) {
     // Reset the file input
     event.target.value = '';
 }
-[file content end]
