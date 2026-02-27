@@ -323,8 +323,8 @@ def generate_paper(current_user):
                 if file.filename != '':
                     file_content = file.read()
                     context_text = extract_text_from_file(file_content, file.content_type, file.filename)
-                    if context_text and context_text.startswith('Error') or context_text.startswith('Unsupported'):
-                         return jsonify({'message': f'Failed to process context file: {context_text}'}), 400
+                    if isinstance(context_text, str) and (context_text.startswith('Error') or context_text.startswith('Unsupported')):
+                        return jsonify({'message': f'Failed to process context file: {context_text}'}), 400
 
         else:
             # Fallback for JSON requests (legacy support if needed, though frontend sends form-data)
