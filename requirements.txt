@@ -1,4 +1,4 @@
-[file content begin]
+
 Flask==2.3.3
 Flask-CORS==4.0.0
 pymongo==4.5.0
@@ -9,4 +9,4 @@ google-generativeai==0.3.0
 Pillow==10.0.0
 PyPDF2==3.0.1
 python-docx==1.1.0
-[file content end]
+

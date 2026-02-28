@@ -1,5 +1,5 @@
 # backend/app.py
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -11,11 +11,10 @@ import json
 import smtplib
 from email.message import EmailMessage
 import os
+import sys
+import importlib
 from dotenv import load_dotenv
 import logging
-import google.generativeai as genai
-import tempfile
-import base64
 import io
 from PIL import Image
 import PyPDF2
@@ -27,6 +26,17 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
+
+
+def load_genai_module():
+    """Load google.generativeai only when runtime is supported."""
+    if sys.version_info >= (3, 14):
+        return None, "google-generativeai is currently incompatible with Python 3.14+. Use Python 3.13 or lower."
+
+    if importlib.util.find_spec('google.generativeai') is None:
+        return None, "google-generativeai package is not installed."
+
+    return importlib.import_module('google.generativeai'), None
 
 app = Flask(__name__)
 CORS(app)
@@ -56,9 +66,14 @@ except Exception as e:
 
 # Gemini AI Configuration
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+genai, GENAI_UNAVAILABLE_REASON = load_genai_module()
+
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    logger.info("✅ Gemini AI configured successfully")
+    if genai:
+        genai.configure(api_key=GEMINI_API_KEY)
+        logger.info("✅ Gemini AI configured successfully")
+    else:
+        logger.warning("⚠️ Gemini AI disabled: %s", GENAI_UNAVAILABLE_REASON)
 else:
     logger.warning("⚠️ GEMINI_API_KEY not found. AI features will be limited.")
 
@@ -113,6 +128,9 @@ def generate_questions_with_gemini(subject, topics, difficulty, question_types, 
     try:
         if not GEMINI_API_KEY:
             return None, "Gemini API key not configured"
+
+        if not genai:
+            return None, GENAI_UNAVAILABLE_REASON
         
         model = genai.GenerativeModel('gemini-pro')
         
@@ -146,6 +164,9 @@ def validate_answer_with_gemini(question, answer, max_marks):
     try:
         if not GEMINI_API_KEY:
             return None, None, "Gemini API key not configured"
+
+        if not genai:
+            return None, None, GENAI_UNAVAILABLE_REASON
         
         model = genai.GenerativeModel('gemini-pro')
         
@@ -193,6 +214,9 @@ def extract_text_from_file(file_content, file_type):
             # Extract text from image using Gemini Vision
             if not GEMINI_API_KEY:
                 return "Image processing requires Gemini API key"
+
+            if not genai:
+                return GENAI_UNAVAILABLE_REASON
             
             model = genai.GenerativeModel('gemini-pro-vision')
             image = Image.open(io.BytesIO(file_content))
@@ -247,7 +271,17 @@ def send_password_reset_email(to_email, reset_link):
 # Routes
 @app.route('/')
 def home():
-    return jsonify({'message': 'Question Generator API with Gemini AI is running!'})
+    return send_from_directory(app.root_path, 'index.html')
+
+
+@app.route('/style.css')
+def serve_styles():
+    return send_from_directory(app.root_path, 'style.css')
+
+
+@app.route('/app.js')
+def serve_script():
+    return send_from_directory(app.root_path, 'app.js')
 
 # Generate Question Paper with AI
 @app.route('/api/generate-paper', methods=['POST'])
