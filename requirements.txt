@@ -1,12 +1,2 @@
-
-Flask==2.3.3
-Flask-CORS==4.0.0
-pymongo==4.5.0
-PyJWT==2.8.0
-Werkzeug==2.3.7
-python-dotenv==1.0.0
-# google-generativeai currently does not support Python 3.14+
-google-generativeai==0.3.0; python_version < "3.14"
-Pillow==10.0.0
-PyPDF2==3.0.1
-python-docx==1.1.0
+# No third-party dependencies are required for the current local setup.
+# Run the app with: python app.py

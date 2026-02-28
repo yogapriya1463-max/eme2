@@ -2,7 +2,7 @@
 // (Replace the entire app.js content with this)
 
 const API_BASE_URL = 'http://localhost:5000/api';
-const USE_MOCK_API = false; // Set to false when backend is running
+const USE_MOCK_API = true; // Running without Flask backend by default
 
 // State management
 let currentUser = null;
