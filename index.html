@@ -629,6 +629,49 @@
     </main>
 
     <script src="app.js"></script>
+    <script>
+// Add immediate health check when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Checking backend connection...');
+    
+    // Test if backend is reachable
+    fetch('http://localhost:5000/api/health', { 
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        // Short timeout
+        signal: AbortSignal.timeout(3000)
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log('✅ Backend connection successful');
+            return response.json();
+        } else {
+            throw new Error('Backend not responding properly');
+        }
+    })
+    .then(data => {
+        console.log('Backend status:', data);
+        // You could show a success message or update UI
+    })
+    .catch(error => {
+        console.error('❌ Backend connection failed:', error);
+        // Show a warning to the user
+        const toast = document.getElementById('toast');
+        if (toast) {
+            const toastMessage = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+            if (toastMessage && toastIcon) {
+                toastIcon.textContent = '⚠️';
+                toastMessage.textContent = 'Backend server not detected. Make sure Flask is running on port 5000.';
+                toast.className = 'toast toast-warning show';
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 5000);
+            }
+        }
+    });
+});
+</script>
 </body>
 
 </html>
