@@ -878,39 +878,38 @@ async function generatePaperPreview() {
             const contextInfo = uploadedContextFile ? 
                 `\n\nBased on uploaded file: ${uploadedContextFile.name}\n` : '';
             
-            // Generate appropriate number of one-word questions based on marks
+            // Check if only one-word questions are selected
+            const onlyOneWord = questionTypes.length === 1 && questionTypes[0] === 'oneword';
+            
             let content = '';
-            if (questionTypes.length === 1 && questionTypes[0] === 'oneword') {
-                // If only one-word questions are selected, generate exactly marks number of questions
+            if (onlyOneWord) {
+                // Generate exactly marks number of one-word questions
                 const numQuestions = parseInt(marks);
-                content = `ONE WORD QUESTIONS PAPER: ${title}\nSubject: ${subject}\n\n`;
+                content = `ONE WORD QUESTIONS\n\n`;
+                const topicsList = topics.split(',').map(t => t.trim());
                 for (let i = 1; i <= numQuestions; i++) {
-                    content += `${i}. Define the term related to ${topics.split(',')[0] || subject}:\n   (1 mark)\n\n`;
+                    const topic = topicsList[(i-1) % topicsList.length];
+                    content += `${i}. What is the term for the process of ${topic} in ${subject}?\n`;
                 }
             } else {
                 content = `
-QUESTION PAPER: ${title}
-Subject: ${subject}
-                    
 SECTION A: Multiple Choice Questions (${Math.floor(marks * 0.3)} marks)
-Choose the correct answer for each question.
 
 1. Sample MCQ question about ${topics.split(',')[0] || subject}?
-   a) Option A
-   b) Option B
-   c) Option C
-   d) Option D
+   A) Option A
+   B) Option B
+   C) Option C
+   D) Option D
    (1 mark)
 
 2. Another MCQ question about ${subject}?
-   a) Option A
-   b) Option B
-   c) Option C
-   d) Option D
+   A) Option A
+   B) Option B
+   C) Option C
+   D) Option D
    (1 mark)
 
 SECTION B: Short Answer Questions (${Math.floor(marks * 0.3)} marks)
-Answer the following questions briefly.
 
 3. Explain the key concepts of ${topics.split(',')[0] || subject} in 3-4 sentences.
    (2 marks)
@@ -919,15 +918,13 @@ Answer the following questions briefly.
    (3 marks)
 
 SECTION C: Long Answer Questions (${Math.floor(marks * 0.4)} marks)
-Answer in detail.
 
 5. Discuss the importance and applications of ${subject} in modern context.
    (5 marks)
 
 6. Analyze the relationship between different aspects of ${topics || subject} and their impact.
    (5 marks)
-${contextInfo}
----`;
+${contextInfo}`;
             }
             
             paperData = {
@@ -1063,7 +1060,7 @@ function renderPaperPreview(data) {
 
     if (!previewContent || !paperPreview || !downloadPaperBtn) return;
 
-    // Format the content
+    // Format the content - preserve line breaks but don't add extra formatting
     const formattedContent = data.content.replace(/\n/g, '<br>');
 
     const previewHTML = `
@@ -1084,7 +1081,6 @@ function renderPaperPreview(data) {
         </div>
         <div style="margin-bottom: 1rem;"><strong>Topics Covered:</strong> ${data.topics}</div>
         <div style="margin-bottom: 1rem;"><strong>Question Types:</strong> ${data.questionTypes.join(', ')}</div>
-        ${data.instructions ? `<div style="margin-bottom: 1.5rem; padding: 1rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;"><strong>Instructions:</strong> ${data.instructions}</div>` : ''}
         
         <div style="background: #ffffff; padding: 1.5rem; border: 1px solid #dee2e6; border-radius: 6px; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace;">
             ${formattedContent}
@@ -1106,16 +1102,58 @@ function renderPaperPreview(data) {
     // Scroll to preview
     paperPreview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
-// UPDATED: PDF Download function - Replace this in your app.js
+
+// UPDATED: PDF Download function - Clean version without instructions
 function downloadGeneratedPaper() {
     if (!generatedPaperContent) {
         showToast('Please generate a paper first', 'error');
         return;
     }
 
-    showToast('Preparing PDF download...', 'info');
+    showToast('Preparing download...', 'info');
 
-    // Create HTML content for PDF
+    // Clean the content - remove any instructions that might have been added
+    let cleanContent = generatedPaperContent.content;
+    
+    // Remove common instruction patterns
+    const instructionPatterns = [
+        /INSTRUCTIONS?:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
+        /Note:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
+        /Important:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
+        /Read all questions carefully[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
+        /This question paper carries[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
+        /Duration:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
+        /Time allowed:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
+        /Maximum marks:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
+    ];
+    
+    instructionPatterns.forEach(pattern => {
+        cleanContent = cleanContent.replace(pattern, '');
+    });
+    
+    // Remove any lines that contain common instruction words
+    const lines = cleanContent.split('\n');
+    const filteredLines = lines.filter(line => {
+        const lowerLine = line.toLowerCase().trim();
+        // Keep the line if it doesn't start with instruction words
+        const instructionStarts = [
+            'instruction', 'note:', 'important:', 'please read', 
+            'read all', 'this paper', 'duration', 'time allowed', 
+            'maximum marks', 'answer all', 'show your working'
+        ];
+        
+        // Check if line starts with any instruction word
+        for (const word of instructionStarts) {
+            if (lowerLine.startsWith(word)) {
+                return false;
+            }
+        }
+        return true;
+    });
+    
+    cleanContent = filteredLines.join('\n');
+
+    // Create HTML content for PDF - without any extra text
     const paperHTML = `
         <!DOCTYPE html>
         <html>
@@ -1123,16 +1161,14 @@ function downloadGeneratedPaper() {
             <title>${generatedPaperContent.title}</title>
             <style>
                 body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-                h1 { color: #0366d6; text-align: center; border-bottom: 2px solid #0366d6; padding-bottom: 10px; }
-                h2 { color: #333; margin-top: 30px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-                .header-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; }
+                h1 { color: #0366d6; text-align: center; margin-bottom: 30px; }
+                .header-info { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; }
                 .question { margin: 15px 0; padding: 10px; border-bottom: 1px solid #eee; }
                 .question-number { font-weight: bold; color: #0366d6; }
                 .question-text { margin: 5px 0; }
                 .question-marks { color: #666; font-size: 0.9em; }
                 .options { margin: 10px 0 10px 20px; }
                 .option { margin: 5px 0; }
-                .footer { margin-top: 40px; text-align: center; color: #666; font-size: 0.9em; }
             </style>
         </head>
         <body>
@@ -1143,25 +1179,10 @@ function downloadGeneratedPaper() {
                 <div><strong>Date:</strong> ${generatedPaperContent.date}</div>
                 <div><strong>Duration:</strong> ${generatedPaperContent.time} minutes</div>
                 <div><strong>Total Marks:</strong> ${generatedPaperContent.marks}</div>
-                <div><strong>Difficulty:</strong> ${generatedPaperContent.difficulty}</div>
             </div>
             
-            <div><strong>Topics Covered:</strong> ${generatedPaperContent.topics}</div>
-            
-            ${generatedPaperContent.ai_used ? `
-            <div style="margin: 20px 0; padding: 10px; background: #d4edda; border-radius: 5px;">
-                <strong>✓ Generated with Gemini AI</strong> ${generatedPaperContent.used_context ? 'using uploaded material' : 'based on your specifications'}
-            </div>
-            ` : ''}
-            
-            <div style="white-space: pre-wrap; font-family: 'Courier New', monospace;">
-                ${generatedPaperContent.content.replace(/\n/g, '<br>')}
-            </div>
-            
-            <div class="footer">
-                Generated by AI Question Generator<br>
-                Date: ${new Date().toLocaleDateString()} | Time: ${new Date().toLocaleTimeString()}
-                ${uploadedContextFile ? `<br>Source Material: ${uploadedContextFile.name}` : ''}
+            <div style="white-space: pre-wrap; font-family: 'Courier New', monospace; margin-top: 30px;">
+                ${cleanContent.replace(/\n/g, '<br>')}
             </div>
         </body>
         </html>
@@ -1174,7 +1195,7 @@ function downloadGeneratedPaper() {
     // Create a temporary link element
     const a = document.createElement('a');
     a.href = url;
-    const fileName = `${generatedPaperContent.title.replace(/\s+/g, '_')}_${generatedPaperContent.subject}_${new Date().toISOString().split('T')[0]}.html`;
+    const fileName = `${generatedPaperContent.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.html`;
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
@@ -1183,7 +1204,7 @@ function downloadGeneratedPaper() {
     setTimeout(() => {
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        showToast('Question paper downloaded as HTML! You can print to PDF.', 'success');
+        showToast('Question paper downloaded successfully!', 'success');
     }, 100);
 }
 
