@@ -1103,7 +1103,7 @@ function renderPaperPreview(data) {
     paperPreview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// UPDATED: PDF Download function - Clean version without instructions
+// UPDATED: PDF Download function - Comprehensive instruction removal
 function downloadGeneratedPaper() {
     if (!generatedPaperContent) {
         showToast('Please generate a paper first', 'error');
@@ -1115,16 +1115,19 @@ function downloadGeneratedPaper() {
     // Clean the content - remove any instructions that might have been added
     let cleanContent = generatedPaperContent.content;
     
-    // Remove common instruction patterns
+    // Remove common instruction patterns - more comprehensive list
     const instructionPatterns = [
-        /INSTRUCTIONS?:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
-        /Note:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
-        /Important:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
-        /Read all questions carefully[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
-        /This question paper carries[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
-        /Duration:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
-        /Time allowed:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
-        /Maximum marks:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/i,
+        /INSTRUCTIONS?:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
+        /Note:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
+        /Important:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
+        /Read all questions carefully[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
+        /This question paper carries[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
+        /Duration:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
+        /Time allowed:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
+        /Maximum marks:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
+        /Answer all questions[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
+        /Show your working[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
+        /•[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,  // Remove bullet points before sections
     ];
     
     instructionPatterns.forEach(pattern => {
@@ -1135,11 +1138,16 @@ function downloadGeneratedPaper() {
     const lines = cleanContent.split('\n');
     const filteredLines = lines.filter(line => {
         const lowerLine = line.toLowerCase().trim();
-        // Keep the line if it doesn't start with instruction words
+        
+        // Skip empty lines at the beginning
+        if (lowerLine === '') return true;
+        
+        // Instruction words to check
         const instructionStarts = [
             'instruction', 'note:', 'important:', 'please read', 
             'read all', 'this paper', 'duration', 'time allowed', 
-            'maximum marks', 'answer all', 'show your working'
+            'maximum marks', 'answer all', 'show your working',
+            '•', '●', '○'  // Remove bullet points
         ];
         
         // Check if line starts with any instruction word
@@ -1148,10 +1156,19 @@ function downloadGeneratedPaper() {
                 return false;
             }
         }
+        
+        // Remove lines that are just instructions (no question numbers)
+        if (lowerLine.includes('marks') && !lowerLine.match(/q\d|question|\d\./)) {
+            return false;
+        }
+        
         return true;
     });
     
     cleanContent = filteredLines.join('\n');
+    
+    // Remove multiple consecutive empty lines
+    cleanContent = cleanContent.replace(/\n\s*\n\s*\n/g, '\n\n');
 
     // Create HTML content for PDF - without any extra text
     const paperHTML = `

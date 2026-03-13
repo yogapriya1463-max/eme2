@@ -1,4 +1,4 @@
-# backend/app.py - COMPLETE FIXED VERSION
+# backend/app.py - COMPLETE FIXED VERSION WITH INSTRUCTIONS REMOVED
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from pymongo import MongoClient
@@ -87,7 +87,7 @@ except Exception as e:
     validations_collection = None
 
 # Gemini AI Configuration
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GEMINI_API_KEY = os.getenv('AIzaSyCv3iev_VoTOefiO_X9V4A7U5RrZt-10k4')
 genai, GENAI_UNAVAILABLE_REASON = load_genai_module()
 
 if GEMINI_API_KEY:
@@ -331,6 +331,7 @@ def generate_questions_with_gemini(subject, topics, difficulty, question_types, 
             
             Based on this source material, """
         
+        # MODIFIED PROMPT - Removed instructions section, only generate questions
         prompt = f"""
         {context_section}Generate a comprehensive question paper for {subject} with the following specifications:
         
@@ -340,22 +341,18 @@ def generate_questions_with_gemini(subject, topics, difficulty, question_types, 
         Question Types Required: {', '.join(question_types)}
         Total Marks: {total_marks}
         
-        Please generate a well-structured question paper with:
-        1. Clear instructions at the beginning
+        IMPORTANT: DO NOT include any instructions section. Start directly with SECTION A.
+        
+        Generate a well-structured question paper with:
+        1. Start directly with SECTION A
         2. Appropriate distribution of questions across different sections
-        3. Each question should include mark allocation
+        3. Each question should include mark allocation in parentheses
         4. Mix of different question types as requested
         5. Questions that test different cognitive levels (remember, understand, apply, analyze)
         
-        Format the output as follows:
+        Format the output as follows - WITHOUT any instructions:
         
         [PAPER TITLE]
-        
-        INSTRUCTIONS:
-        - This question paper carries {total_marks} marks
-        - Duration: [duration] minutes
-        - Read all questions carefully before answering
-        - [other relevant instructions]
         
         SECTION A: [Question Type] (Marks: [marks])
         Q1. [Question] ([marks] marks)
@@ -378,7 +375,7 @@ def generate_questions_with_gemini(subject, topics, difficulty, question_types, 
         return generate_fallback_questions(subject, topics, difficulty, question_types, total_marks, context_text), str(e)
 
 def generate_fallback_questions(subject, topics, difficulty, question_types, total_marks, context_text=None):
-    """Generate fallback questions when Gemini is not available"""
+    """Generate fallback questions when Gemini is not available - WITHOUT INSTRUCTIONS"""
     marks = int(total_marks)
     mcq_marks = int(marks * 0.3)
     short_marks = int(marks * 0.3)
@@ -386,20 +383,13 @@ def generate_fallback_questions(subject, topics, difficulty, question_types, tot
     
     context_info = f"\nBased on uploaded material: {context_text[:200]}...\n" if context_text else ""
     
+    # REMOVED THE INSTRUCTIONS SECTION - Now starts directly with SECTION A
     return f"""
 QUESTION PAPER
 Subject: {subject}
 Topics: {topics}
 Difficulty: {difficulty}
 Total Marks: {marks}
-
-INSTRUCTIONS:
-• This question paper carries {marks} marks
-• Duration: 180 minutes
-• Read all questions carefully before answering
-• Answer all questions in the spaces provided
-• Show your working for calculations where applicable
-{context_info}
 
 SECTION A: Multiple Choice Questions ({mcq_marks} marks)
 Choose the correct answer for each question.
@@ -454,9 +444,6 @@ Answer in detail.
 10. Evaluate the importance of {topics} in the broader context of {subject}.
     Include relevant case studies or examples.
     (5 marks)
-
----
-Note: This is a sample paper generated as fallback. Install and configure Gemini AI for AI-generated questions.
 """
 
 def extract_text_from_file(file_content, file_type):
