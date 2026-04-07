@@ -893,16 +893,16 @@ async function generatePaperPreview() {
                 }
             } else {
                 content = `
-SECTION A: Multiple Choice Questions (${Math.floor(marks * 0.3)} marks)
+SECTION A: Multiple Choice Questions (${Math.floor(marks * 0.5)} marks)
 
-1. Sample MCQ question about ${topics.split(',')[0] || subject}?
+1. Sample MCQ question about ${topics.split(',')[0] || topics}?
    A) Option A
    B) Option B
    C) Option C
    D) Option D
    (1 mark)
 
-2. Another MCQ question about ${subject}?
+2. Another MCQ question about ${topics}?
    A) Option A
    B) Option B
    C) Option C
@@ -911,19 +911,19 @@ SECTION A: Multiple Choice Questions (${Math.floor(marks * 0.3)} marks)
 
 SECTION B: Short Answer Questions (${Math.floor(marks * 0.3)} marks)
 
-3. Explain the key concepts of ${topics.split(',')[0] || subject} in 3-4 sentences.
-   (2 marks)
+3. Explain the key concepts of ${topics.split(',')[0] || topics} in 3-4 sentences.
+   (5 marks)
 
-4. What are the main principles of ${subject}? Provide examples.
-   (3 marks)
+4. What are the main principles of ${topics}? Provide examples.
+   (5 marks)
 
 SECTION C: Long Answer Questions (${Math.floor(marks * 0.4)} marks)
 
-5. Discuss the importance and applications of ${subject} in modern context.
-   (5 marks)
+5. Discuss the importance and applications of ${topics} in modern context.
+   (10 marks)
 
-6. Analyze the relationship between different aspects of ${topics || subject} and their impact.
-   (5 marks)
+6. Analyze the relationship between different aspects of ${topics || topics} and their impact.
+   (10 marks)
 ${contextInfo}`;
             }
             

@@ -87,7 +87,7 @@ except Exception as e:
     validations_collection = None
 
 # Gemini AI Configuration
-GEMINI_API_KEY = os.getenv('AIzaSyCv3iev_VoTOefiO_X9V4A7U5RrZt-10k4')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 genai, GENAI_UNAVAILABLE_REASON = load_genai_module()
 
 if GEMINI_API_KEY:
@@ -228,6 +228,8 @@ def generate_paper():
             
             # Handle context file if uploaded
             context_text = None
+            context_file_data = None
+            context_mime_type = None
             if 'context_file' in request.files:
                 file = request.files['context_file']
                 if file and file.filename:
@@ -235,6 +237,10 @@ def generate_paper():
                     file_type = file.content_type or file.filename.split('.')[-1].lower()
                     context_text = extract_text_from_file(file_content, file_type)
                     logger.info(f"Extracted text from {file.filename}: {len(context_text) if context_text else 0} characters")
+                    
+                    if 'image' in file_type:
+                        context_file_data = file_content
+                        context_mime_type = file_type
         else:
             # Handle JSON data
             data = request.get_json() or {}
@@ -245,6 +251,8 @@ def generate_paper():
             total_marks = data.get('total_marks', '100')
             question_types = data.get('question_types', [])
             context_text = data.get('context_text', None)
+            context_file_data = None
+            context_mime_type = None
         
         # Validate required fields
         if not title:
@@ -269,7 +277,9 @@ def generate_paper():
                     difficulty,
                     question_types,
                     total_marks,
-                    context_text
+                    context_text,
+                    context_file_data,
+                    context_mime_type
                 )
                 if not error:
                     ai_used = True
@@ -312,26 +322,28 @@ def generate_paper():
         logger.error(f"Generate paper error: {str(e)}")
         return jsonify({'message': f'Server error occurred: {str(e)}'}), 500
 
-def generate_questions_with_gemini(subject, topics, difficulty, question_types, total_marks, context_text=None):
+def generate_questions_with_gemini(subject, topics, difficulty, question_types, total_marks, context_text=None, context_file_data=None, context_mime_type=None):
     """Generate questions using Gemini AI with optional context from uploaded files"""
     try:
         if not GEMINI_API_KEY or not genai:
             return generate_fallback_questions(subject, topics, difficulty, question_types, total_marks, context_text), "Gemini not available"
         
-        model = genai.GenerativeModel('gemini-pro')
+        # Use gemini-1.5-flash for multimodal support and better context handling
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # Build prompt with context if available
         context_section = ""
-        if context_text and context_text.strip():
+        if context_text and len(context_text) > 100:
             context_section = f"""
-            IMPORTANT - Use the following source material to generate questions:
+            IMPORTANT - You MUST use the following source material to generate the questions:
             
             SOURCE MATERIAL:
             {context_text[:5000]}  # Limit context to avoid token limits
             
             Based on this source material, """
+        elif context_file_data and context_mime_type:
+            context_section = "IMPORTANT - Use the attached image content to generate the questions. Based on the material in this image, "
         
-        # MODIFIED PROMPT - Removed instructions section, only generate questions
         prompt = f"""
         {context_section}Generate a comprehensive question paper for {subject} with the following specifications:
         
@@ -367,7 +379,11 @@ def generate_questions_with_gemini(subject, topics, difficulty, question_types, 
         - Varied in difficulty within each section
         """
         
-        response = model.generate_content(prompt)
+        content_parts = [prompt]
+        if context_file_data and context_mime_type and 'image' in context_mime_type:
+            content_parts.append({'mime_type': context_mime_type, 'data': context_file_data})
+            
+        response = model.generate_content(content_parts)
         return response.text, None
         
     except Exception as e:
@@ -483,8 +499,22 @@ def extract_text_from_file(file_content, file_type):
                 logger.error(f"TXT extraction error: {str(e)}")
                 return f"Error extracting text: {str(e)}"
         
+        # Handle image files (OCR) using Gemini 1.5 Flash
+        elif 'image' in file_type_lower or any(ext in file_type_lower for ext in ['jpg', 'jpeg', 'png']):
+            if GEMINI_API_KEY and genai:
+                try:
+                    # Use gemini-1.5-flash for high-quality OCR
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    image = Image.open(io.BytesIO(file_content))
+                    response = model.generate_content(["Extract all text from this image exactly as it appears. If it's handwritten, transcribe it carefully.", image])
+                    return response.text.strip()
+                except Exception as e:
+                    logger.error(f"Image OCR error: {str(e)}")
+                    return f"Error extracting text from image: {str(e)}"
+            return "Gemini AI is required for image text extraction."
+
         else:
-            return f"File processed. To extract text, please use PDF, DOCX, or TXT files."
+            return f"File type {file_type} is not directly supported for text extraction. Please use PDF, DOCX, TXT, or Image files."
             
     except Exception as e:
         logger.error(f"File extraction error: {str(e)}")
@@ -795,13 +825,48 @@ def validate_answers():
                 answer_key = extract_text_from_file(answer_key_content, answer_key_type)
         
         results = []
+        ai_used = False
         
         for i, file in enumerate(files):
             if file.filename == '':
                 continue
             
-            # Generate a simple result
-            marks = random.randint(60, 95)
+            file_content = file.read()
+            student_text = extract_text_from_file(file_content, file.content_type)
+            
+            marks = random.randint(70, 85) # Base fallback
+            ai_feedback = "AI evaluation currently unavailable."
+            
+            if GEMINI_API_KEY and genai:
+                try:
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    prompt = f"""
+                    Evaluate this student's answer sheet against the provided answer key.
+                    
+                    ANSWER KEY:
+                    {answer_key if answer_key else "Not provided. Evaluate based on general knowledge."}
+                    
+                    STUDENT ANSWER SHEET:
+                    {student_text}
+                    
+                    Provide:
+                    1. Total marks (out of 100)
+                    2. A letter grade (A, B, C, D, or F)
+                    3. Short feedback (max 2 sentences)
+                    
+                    Format as JSON: {{"marks": 85, "grade": "B", "feedback": "..."}}
+                    """
+                    response = model.generate_content(prompt)
+                    # Extract JSON from response text
+                    match = re.search(r'\{.*\}', response.text, re.DOTALL)
+                    if match:
+                        eval_data = json.loads(match.group())
+                        marks = eval_data.get('marks', marks)
+                        ai_feedback = eval_data.get('feedback', ai_feedback)
+                    ai_used = True
+                except Exception as e:
+                    logger.error(f"AI Validation error for {file.filename}: {str(e)}")
+
             grade = 'A' if marks >= 90 else 'B' if marks >= 80 else 'C' if marks >= 70 else 'D' if marks >= 60 else 'F'
             
             result = {
@@ -809,9 +874,9 @@ def validate_answers():
                 'student_id': f'Student_{i+1}',
                 'marks': marks,
                 'grade': grade,
+                'ai_feedback': ai_feedback,
                 'file_type': file.content_type or file.filename.split('.')[-1].lower()
             }
-            
             results.append(result)
         
         # Calculate summary statistics
@@ -827,7 +892,7 @@ def validate_answers():
                 'highest_marks': max(r['marks'] for r in results) if results else 0,
                 'lowest_marks': min(r['marks'] for r in results) if results else 0
             },
-            'ai_used': False
+            'ai_used': ai_used
         }), 200
         
     except Exception as e:
@@ -859,20 +924,37 @@ def generate_material():
         topics = request.form.get('topics', '')
         instructions = request.form.get('instructions', '')
 
-        # Generate a simple response without requiring text extraction
-        file_name = f.filename if f.filename else 'uploaded_file'
+        file_content = f.read()
+        extracted_text = extract_text_from_file(file_content, f.content_type)
         
-        summary = f"This is a {summary_length} summary of the uploaded file '{file_name}'. "
-        summary += f"Difficulty level: {difficulty}. "
-        if topics:
-            summary += f"Topics covered: {topics}. "
-        if instructions:
-            summary += f"Special instructions: {instructions}. "
-        summary += "The material has been processed successfully."
+        summary = f"Summary of {f.filename} could not be generated."
+        notes = [f"Note {i+1} about the content" for i in range(notes_count)]
+        ai_used = False
 
-        notes = []
-        for i in range(min(notes_count, 5)):
-            notes.append(f"Key point {i+1} from the material about {topics if topics else 'the subject'}")
+        if GEMINI_API_KEY and genai:
+            try:
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                prompt = f"""
+                Summarize the following text into a {summary_length} paragraph and provide {notes_count} bullet points.
+                Difficulty: {difficulty}
+                Topics to focus on: {topics}
+                Instructions: {instructions}
+                
+                TEXT:
+                {extracted_text[:10000]}
+                """
+                response = model.generate_content(prompt)
+                # Split response into summary and notes
+                content_parts = response.text.split('\n')
+                summary = content_parts[0] if content_parts else summary
+                notes = [line.strip('- ').strip('* ') for line in content_parts[1:] if line.strip()][:notes_count]
+                ai_used = True
+            except Exception as e:
+                logger.error(f"Material generation AI error: {str(e)}")
+        else:
+            # Basic fallback if no AI
+            summary = f"Fallback summary for {f.filename}. To enable AI, configure your GEMINI_API_KEY."
+            notes = [f"Manual point {i+1} regarding {topics if topics else 'the topic'}" for i in range(notes_count)]
 
         return jsonify({
             'success': True,
@@ -882,7 +964,7 @@ def generate_material():
             'difficulty': difficulty,
             'topics': topics,
             'instructions': instructions,
-            'ai_used': False
+            'ai_used': ai_used
         }), 200
 
     except Exception as e:
