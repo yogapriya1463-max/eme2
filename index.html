@@ -6,17 +6,199 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Automated AI Question Paper Generator</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Additional improved styles */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 1001;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+            max-width: 400px;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast-success { border-left: 4px solid #28a745; }
+        .toast-error { border-left: 4px solid #dc3545; }
+        .toast-info { border-left: 4px solid #17a2b8; }
+        .toast-warning { border-left: 4px solid #ffc107; }
+
+        .form-control.error {
+            border-color: #dc3545;
+            background-color: #fff8f8;
+        }
+
+        .form-control.success {
+            border-color: #28a745;
+            background-color: #f0fff0;
+        }
+
+        .password-strength {
+            margin-top: 0.5rem;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .strength-bar {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .strength-weak { background: #dc3545; width: 25%; }
+        .strength-fair { background: #ffc107; width: 50%; }
+        .strength-good { background: #17a2b8; width: 75%; }
+        .strength-strong { background: #28a745; width: 100%; }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .checkbox-item:hover {
+            background: #e9ecef;
+        }
+
+        .action-container {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .action-container .btn {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .results-table-wrapper {
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .results-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .empty-state .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .validation-item {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        .badge-subject {
+            background: #e7f1ff;
+            color: #0366d6;
+        }
+
+        @media (max-width: 768px) {
+            .action-container {
+                flex-direction: column;
+            }
+            .action-container .btn {
+                width: 100%;
+            }
+            .dashboard-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 
 <body>
     <!-- Header -->
     <header>
         <div class="logo" id="homeBtn">
-            📚 AI Question Generator
+            🤖 AI Question Generator
         </div>
         <div class="nav-buttons">
             <button id="headerHomeBtn" class="btn btn-secondary" style="display: none;">
                 🏠 Home
+            </button>
+            <button id="dashboardNavBtn" class="btn btn-secondary" style="display: none;">
+                📊 Dashboard
             </button>
             <button id="loginBtn" class="btn btn-primary">
                 🔐 Login
@@ -33,7 +215,7 @@
         <span id="toastMessage">Notification message</span>
     </div>
 
-    <!-- Login Modal -->
+    <!-- Login Modal (Remember Me and Forgot Password Removed) -->
     <div id="loginModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -42,24 +224,15 @@
             </div>
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="loginEmail">Email Address</label>
-                    <input type="email" id="loginEmail" class="form-control" placeholder="Enter your email" required>
+                    <label for="loginEmail">📧 Email Address</label>
+                    <input type="email" id="loginEmail" class="form-control" placeholder="Enter your email" required autocomplete="email">
                     <div class="error-message" id="loginEmailError"></div>
                 </div>
 
                 <div class="form-group">
-                    <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" class="form-control" placeholder="Enter your password"
-                        required>
+                    <label for="loginPassword">🔒 Password</label>
+                    <input type="password" id="loginPassword" class="form-control" placeholder="Enter your password" required autocomplete="current-password">
                     <div class="error-message" id="loginPasswordError"></div>
-                </div>
-
-                <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
-                    <label style="margin-bottom: 0;">
-                        <input type="checkbox" id="rememberMe" style="margin-right: 0.5rem;">
-                        Remember me
-                    </label>
-                    <a href="#" id="forgotPassword" style="font-size: 0.9rem;">Forgot password?</a>
                 </div>
 
                 <button type="submit" class="btn btn-primary" style="width: 100%;" id="loginSubmitBtn">
@@ -69,7 +242,7 @@
             </form>
 
             <div class="form-switch">
-                Don't have an account? <a id="switchToRegister">Register here</a>
+                Don't have an account? <a id="switchToRegister" style="cursor: pointer;">Register here</a>
             </div>
         </div>
     </div>
@@ -83,40 +256,36 @@
             </div>
             <form id="registerForm">
                 <div class="form-group">
-                    <label for="regName">Full Name</label>
-                    <input type="text" id="regName" class="form-control" placeholder="Enter your full name" required>
+                    <label for="regName">👤 Full Name</label>
+                    <input type="text" id="regName" class="form-control" placeholder="Enter your full name" required autocomplete="name">
                     <div class="error-message" id="regNameError"></div>
                 </div>
 
                 <div class="form-group">
-                    <label for="regEmail">Email Address</label> 
-                    <input type="email" id="regEmail" class="form-control" placeholder="Enter your email" required>
+                    <label for="regEmail">📧 Email Address</label>
+                    <input type="email" id="regEmail" class="form-control" placeholder="Enter your email" required autocomplete="email">
                     <div class="error-message" id="regEmailError"></div>
                 </div>
 
                 <div class="form-group">
-                    <label for="regPassword">Password</label>
-                    <input type="password" id="regPassword" class="form-control"
-                        placeholder="Create a password (min. 6 characters)" required minlength="6">
+                    <label for="regPassword">🔒 Password</label>
+                    <input type="password" id="regPassword" class="form-control" placeholder="Create a password (min. 6 characters)" required minlength="6" autocomplete="new-password">
                     <div class="password-strength">
-                        <div class="strength-bar" id="passwordStrength"></div>
+                        <div class="strength-bar" id="regPasswordStrength"></div>
                     </div>
                     <div class="error-message" id="regPasswordError"></div>
                 </div>
 
                 <div class="form-group">
-                    <label for="regConfirmPassword">Confirm Password</label>
-                    <input type="password" id="regConfirmPassword" class="form-control"
-                        placeholder="Confirm your password" required>
+                    <label for="regConfirmPassword">✓ Confirm Password</label>
+                    <input type="password" id="regConfirmPassword" class="form-control" placeholder="Confirm your password" required autocomplete="new-password">
                     <div class="error-message" id="regConfirmPasswordError"></div>
                 </div>
 
                 <div class="form-group">
-                    <label style="display: flex; align-items: flex-start; font-size: 0.9rem;">
-                        <input type="checkbox" id="agreeTerms" style="margin-right: 0.5rem; margin-top: 0.2rem;"
-                            required>
-                        I agree to the <a href="#" style="color: #0366d6;">Terms of Service</a> and <a href="#"
-                            style="color: #0366d6;">Privacy Policy</a>
+                    <label style="display: flex; align-items: flex-start; cursor: pointer;">
+                        <input type="checkbox" id="agreeTerms" style="margin-right: 0.5rem; margin-top: 0.2rem; width: 18px; height: 18px;" required>
+                        I agree to the <a href="#" style="color: #0366d6;">Terms of Service</a> and <a href="#" style="color: #0366d6;">Privacy Policy</a>
                     </label>
                     <div class="error-message" id="termsError"></div>
                 </div>
@@ -128,40 +297,10 @@
             </form>
 
             <div class="form-switch">
-                Already have an account? <a id="switchToLogin">Login here</a>
+                Already have an account? <a id="switchToLogin" style="cursor: pointer;">Login here</a>
             </div>
         </div>
     </div>
-
-    <!-- Forgot Password Modal -->
-    <div id="forgotPasswordModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>🔑 Forgot Password</h2>
-                <button class="close-modal" data-modal="forgotPasswordModal">&times;</button>
-            </div>
-            <form id="forgotPasswordForm">
-                <div class="form-group">
-                    <label for="forgotEmail">Email Address</label>
-                    <input type="email" id="forgotEmail" class="form-control" placeholder="Enter your email" required>
-                    <div class="error-message" id="forgotEmailError"></div>
-                    <div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
-                        Enter your email address and we'll send you a password reset link.
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary" style="width: 100%;" id="forgotSubmitBtn">
-                    <span id="forgotBtnText">Send Reset Link</span>
-                    <span id="forgotLoading" class="loading" style="display: none;"></span>
-                </button>
-            </form>
-
-            <div class="form-switch">
-                Remember your password? <a id="switchToLoginFromForgot">Login here</a>
-            </div>
-        </div>
-    </div>
-
 
     <!-- Main Content -->
     <main>
@@ -169,17 +308,16 @@
         <section id="homeSection" class="section active">
             <div class="home-container">
                 <div class="hero">
-                    <h1>Automated AI Question Paper Generator</h1>
-                    <p>Create professional question papers in seconds. Customize subjects, topics, difficulty levels,
-                        and question types to generate perfect assessments.</p>
+                    <h1>🤖 Automated AI Question Paper Generator</h1>
+                    <p>Create professional question papers in seconds. Unlock the power of our AI Question Generator free and online! Easily create custom questions from text or images in seconds, perfect for teachers, interview preparation, and study guides.</p>
                 </div>
 
                 <div id="loginRequired" class="login-required">
-                    <h2>🔒 Login Required</h2>
+                    <h2>🔐 Login Required</h2>
                     <p>Please register and login to access the question paper generator and answer validation tools.</p>
-                    <div class="action-buttons" style="margin-top: 2rem;">
-                        <button id="loginFromHome" class="btn btn-primary">🔐 Login</button>
-                        <button id="registerFromHome" class="btn btn-success">📝 Register</button>
+                    <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center;">
+                        <button class="btn btn-primary" id="loginFromHome">Login</button>
+                        <button class="btn btn-secondary" id="registerFromHome">Register</button>
                     </div>
                 </div>
 
@@ -187,9 +325,38 @@
                     <h2 id="welcomeMessage">Welcome back! 👋</h2>
                     <p>You're now logged in. Access all features to create and manage question papers.</p>
                     <div class="action-buttons" style="margin-top: 2rem;">
-                        <button id="startGenerating" class="btn btn-primary">📄 Generate Question Paper</button>
-                        <button id="startGeneratingMaterial" class="btn btn-primary">🧾 Generate Material</button>
+                        <button id="startGenerating" class="btn btn-primary">✨ Generate Question Paper</button>
                         <button id="startValidating" class="btn btn-success">✓ Validate Answer Papers</button>
+                    </div>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">📝</div>
+                        <h3>AI-Powered Generation</h3>
+                        <p>Generate custom question papers using advanced AI algorithms tailored to your subject.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">✓</div>
+                        <h3>Smart Validation</h3>
+                        <p>Automatically validate answer sheets with our intelligent grading system.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>Analytics Dashboard</h3>
+                        <p>Track your performance with detailed analytics and insights.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboardSection" class="section">
+            <div class="home-container">
+                <div id="dashboardContent" class="dashboard-content">
+                    <div class="loading-dashboard" style="text-align: center; padding: 4rem;">
+                        <div class="loading"></div>
+                        <p>Loading dashboard...</p>
                     </div>
                 </div>
             </div>
@@ -199,28 +366,18 @@
         <section id="generateSection" class="section">
             <div class="home-container">
                 <div class="hero">
-                    <h1>Generate Question Paper</h1>
+                    <h1>✨ Generate Question Paper</h1>
                     <p>Configure your question paper settings and let AI generate a perfect assessment.</p>
-
-                    <!-- Section Navigation for Generate Page -->
-                    <div class="section-navigation">
-                        <button id="homeFromGenerate" class="btn btn-secondary">🏠 Home</button>
-                        <button id="generateMaterialFromGenerate" class="btn btn-primary">🧾 Generate Material</button>
-                        <button id="validateFromGenerate" class="btn btn-success">✓ Validate Answers</button>
-                    </div>
                 </div>
 
-                <!-- Content for Generate Page -->
                 <div class="form-container">
                     <h3 style="color: #0366d6; margin-bottom: 1.5rem;">📋 Question Paper Configuration</h3>
 
-                    <!-- Paper Details Form -->
                     <form id="questionPaperForm">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="paperTitle">📝 Paper Title</label>
-                                <input type="text" id="paperTitle" class="form-control"
-                                    placeholder="Enter paper title (e.g., Final Exam 2024)" required>
+                                <label for="paperTitle">📄 Paper Title</label>
+                                <input type="text" id="paperTitle" class="form-control" placeholder="Enter paper title (e.g., Final Exam 2024)" required>
                             </div>
 
                             <div class="form-group">
@@ -249,49 +406,35 @@
 
                             <div class="form-group">
                                 <label for="paperTime">⏰ Exam Duration (minutes)</label>
-                                <input type="number" id="paperTime" class="form-control"
-                                    placeholder="Enter duration in minutes" min="30" max="300" required>
+                                <input type="number" id="paperTime" class="form-control" placeholder="Enter duration" min="30" max="300" required value="180">
                             </div>
 
                             <div class="form-group">
-                                <label for="totalMarks">🎯 Total Marks</label>
-                                <input type="number" id="totalMarks" class="form-control"
-                                    placeholder="Enter total marks" min="10" max="200" required>
+                                <label for="totalMarks">⭐ Total Marks</label>
+                                <input type="number" id="totalMarks" class="form-control" placeholder="Enter total marks" min="10" max="200" required value="100">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>❓ Question Types</label>
+                            <label>📝 Question Types</label>
                             <div class="checkbox-group">
-                                <div class="checkbox-item">
+                                <label class="checkbox-item">
                                     <input type="checkbox" id="qtype_mcq" value="mcq" checked>
-                                    <label for="qtype_mcq">Multiple Choice (MCQ)</label>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="qtype_oneword" value="oneword">
-                                    <label for="qtype_oneword">One Word Answer</label>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="qtype_short" value="short">
-                                    <label for="qtype_short">Short Answer</label>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="qtype_long" value="long">
-                                    <label for="qtype_long">Long Answer</label>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="qtype_essay" value="essay">
-                                    <label for="qtype_essay">Essay Type</label>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="qtype_truefalse" value="truefalse">
-                                    <label for="qtype_truefalse">True/False</label>
-                                </div>
+                                    Multiple Choice (MCQ)
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="qtype_short" value="short" checked>
+                                    Short Answer
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="qtype_long" value="long" checked>
+                                    Long Answer
+                                </label>
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label for="difficultyLevel">📊 Difficulty Level</label>
+                            <label for="difficultyLevel">🎯 Difficulty Level</label>
                             <select id="difficultyLevel" class="form-control" required>
                                 <option value="easy">Easy</option>
                                 <option value="medium" selected>Medium</option>
@@ -302,199 +445,49 @@
 
                         <div class="form-group">
                             <label for="paperTopics">📖 Topics (comma separated)</label>
-                            <textarea id="paperTopics" class="form-control" rows="3"
-                                placeholder="Enter topics, separated by commas (e.g., Algebra, Geometry, Calculus)"></textarea>
+                            <textarea id="paperTopics" class="form-control" rows="3" placeholder="Enter topics, separated by commas (e.g., Algebra, Geometry, Calculus)"></textarea>
                         </div>
-
 
                         <div class="form-group">
-                            <label for="additionalInstructions">📝 Additional Instructions</label>
-                            <textarea id="additionalInstructions" class="form-control" rows="3"
-                                placeholder="Any special instructions for the question paper"></textarea>
+                            <label for="additionalInstructions">📌 Additional Instructions</label>
+                            <textarea id="additionalInstructions" class="form-control" rows="3" placeholder="Any special instructions for the question paper"></textarea>
                         </div>
 
-                        <!-- Action Buttons with FIXED Source Material Upload -->
                         <div class="action-container">
-                            <!-- FIXED: Source Material Upload Section -->
                             <div style="width: 100%; margin-bottom: 1.5rem;">
                                 <div class="file-upload" id="uploadSourceBtn" style="cursor: pointer;">
                                     <div style="pointer-events: none; text-align: center;">
                                         <div style="font-size: 2rem; margin-bottom: 0.5rem;">📁</div>
                                         <h4 style="margin-bottom: 0.5rem; color: #0366d6;">Upload Source Material</h4>
-                                        <p style="margin-bottom: 0.5rem; color: #666;">Upload material to generate
-                                            questions from (Optional)</p>
-                                        <p style="font-size: 0.9rem; color: #999;">Supported: PDF, DOC, DOCX, TXT (Max
-                                            10MB)</p>
+                                        <p style="margin-bottom: 0.5rem; color: #666;">Upload material to generate questions from (Optional)</p>
+                                        <p style="font-size: 0.9rem; color: #999;">Supported: PDF, DOC, DOCX, TXT (Max 10MB)</p>
                                     </div>
-                                    <input type="file" id="sourceUpload" accept=".pdf,.doc,.docx,.txt"
-                                        style="display: none;">
+                                    <input type="file" id="sourceUpload" accept=".pdf,.doc,.docx,.txt" style="display: none;">
                                 </div>
 
                                 <div id="sourceFileInfo" style="display: none; width: 100%; margin-top: 1rem;">
-                                    <div
-                                        style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
                                         <span style="font-size: 1.2rem;">📄</span>
                                         <div style="flex-grow: 1;">
                                             <div style="font-weight: 600;" id="sourceFileName">Uploaded file</div>
                                             <div style="font-size: 0.85rem; color: #666;" id="sourceFileSize"></div>
                                         </div>
-                                        <button type="button" id="removeSourceBtn"
-                                            style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem; padding: 0.5rem; border-radius: 4px; transition: background 0.3s;"
-                                            title="Remove file" onmouseover="this.style.background='#f8d7da'"
-                                            onmouseout="this.style.background='none'">
-                                            🗑️
-                                        </button>
+                                        <button type="button" id="removeSourceBtn" style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem;" title="Remove file">🗑️</button>
                                     </div>
                                 </div>
                             </div>
 
-                            <div style="display: flex; gap: 1rem; width: 100%;">
-                                <button type="button" id="generatePaperBtn" class="btn btn-primary" style="flex: 1;">
-                                    🚀 Generate Paper
-                                </button>
-                                <button type="button" id="downloadPaperBtn" class="btn btn-success" disabled
-                                    style="flex: 1;">
-                                    ⬇️ Download PDF
-                                </button>
-                                <button type="button" id="resetFormBtn" class="btn btn-warning" style="flex: 1;">
-                                    🔄 Reset Form
-                                </button>
+                            <div style="display: flex; gap: 1rem; width: 100%; flex-wrap: wrap;">
+                                <button type="button" id="generatePaperBtn" class="btn btn-primary" style="flex: 1;">✨ Generate Paper</button>
+                                <button type="button" id="downloadPaperBtn" class="btn btn-success" disabled style="flex: 1;">📥 Download PDF</button>
+                                <button type="button" id="resetFormBtn" class="btn btn-warning" style="flex: 1;">🔄 Reset Form</button>
                             </div>
                         </div>
                     </form>
 
-                    <!-- Preview Section -->
                     <div id="paperPreview" class="preview-container" style="display: none;">
                         <h4>📄 Generated Paper Preview</h4>
-                        <div id="previewContent"
-                            style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
-                            <!-- Preview content will be inserted here -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Bottom Navigation -->
-                <div class="section-navigation" style="margin-top: 2rem;">
-                    <button id="bottomHomeFromGenerate" class="btn btn-secondary">🏠 Home</button>
-                    <button id="bottomValidateFromGenerate" class="btn btn-success">✓ Validate Answers</button>
-                    <button id="bottomGenerateMaterialFromGenerate" class="btn btn-primary">🧾 Generate
-                        Material</button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Generate Material Page -->
-        <section id="generateMaterialSection" class="section">
-            <div class="home-container">
-                <div class="hero">
-                    <h1>Generate Study Material</h1>
-                    <p>Upload a file (PDF, DOCX, TXT, or image) to generate a topic summary and short notes.</p>
-                    <div class="section-navigation">
-                        <button id="homeFromGenerateMaterial" class="btn btn-secondary">🏠 Home</button>
-                        <button id="generateFromGenerateMaterial" class="btn btn-primary">📄 Generate Papers</button>
-                        <button id="validateFromGenerateMaterial" class="btn btn-success">✓ Validate Answers</button>
-                    </div>
-                </div>
-                <div class="form-container">
-                    <h3 style="color: #0366d6; margin-bottom: 1.5rem;">📚 Generate Short Notes / Summary</h3>
-                    <div class="form-group">
-                        <label>📤 Upload Material</label>
-                        <div class="file-upload" id="uploadMaterialBtn">
-                            <div style="pointer-events: none;">
-                                <div>📁</div>
-                                <h4>Upload file</h4>
-                                <p>Upload your material (PDF, DOCX, TXT, JPG, PNG)</p>
-                            </div>
-                            <input type="file" id="materialUpload" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
-                        </div>
-                        <div id="materialFileInfo" style="margin-top: 0.5rem; display: none;">
-                            <div
-                                style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
-                                <span style="font-size: 1.2rem;">📄</span>
-                                <div>
-                                    <div style="font-weight: 600;" id="materialFileName">Uploaded file</div>
-                                    <div style="font-size: 0.85rem; color: #666;" id="materialFileSize"></div>
-                                </div>
-                                <button id="removeMaterialBtn"
-                                    style="margin-left: auto; background: none; border: none; color: #dc3545; cursor: pointer;"
-                                    title="Remove material">🗑️</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="summaryLength">Summary length</label>
-                            <select id="summaryLength" class="form-control">
-                                <option value="short">Short (3-4 lines)</option>
-                                <option value="medium" selected>Medium (1-2 paragraphs)</option>
-                                <option value="long">Long (detailed summary)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="notesCount">Number of bullet notes</label>
-                            <input type="number" id="notesCount" class="form-control" value="5" min="1" max="20">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>📘 Material Type</label>
-                            <div class="checkbox-group">
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="mt_oneword" value="oneword">
-                                    <label for="mt_oneword">One Word</label>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="mt_summary" value="summary" checked>
-                                    <label for="mt_summary">Summary</label>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="mt_2marks" value="2marks">
-                                    <label for="mt_2marks">2 Marks Question</label>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="mt_long" value="long">
-                                    <label for="mt_long">Long Question</label>
-                                </div>
-                                <div class="checkbox-item">
-                                    <input type="checkbox" id="mt_essay" value="essay">
-                                    <label for="mt_essay">Essay Type</label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="materialDifficulty">Difficulty Level</label>
-                            <select id="materialDifficulty" class="form-control">
-                                <option value="easy">Easy</option>
-                                <option value="medium" selected>Medium</option>
-                                <option value="hard">Hard</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="materialTopics">📖 Topics (comma separated)</label>
-                            <input type="text" id="materialTopics" class="form-control"
-                                placeholder="e.g., Algebra, Calculus">
-                        </div>
-                        <div class="form-group">
-                            <label for="materialInstructions">📝 Additional Instructions</label>
-                            <textarea id="materialInstructions" class="form-control" rows="2"
-                                placeholder="Any specific instructions for the material..."></textarea>
-                        </div>
-                    </div>
-                    <div class="action-container">
-                        <div style="display:flex; gap:1rem;">
-                            <button id="generateMaterialBtn" class="btn btn-primary">🧾 Generate Material</button>
-                            <button id="resetMaterialBtn" class="btn btn-warning">🔄 Reset</button>
-                        </div>
-                        <button id="downloadMaterialBtn" class="btn btn-success" disabled>⬇️ Download Summary</button>
-                    </div>
-
-                    <div id="materialPreview" class="preview-container" style="display:none; margin-top:1.5rem;">
-                        <h4>📚 Generated Material</h4>
-                        <div id="materialPreviewContent"
-                            style="background:white; padding:1rem; border-radius:6px; border: 1px solid #dee2e6;">
-                        </div>
+                        <div id="previewContent" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;"></div>
                     </div>
                 </div>
             </div>
@@ -504,71 +497,46 @@
         <section id="validateSection" class="section">
             <div class="home-container">
                 <div class="hero">
-                    <h1>Validate Answer Papers</h1>
-                    <p>Upload answer key and answer sheets for AI-powered validation and grading.</p>
-
-                    <!-- Section Navigation for Validate Page -->
-                    <div class="section-navigation">
-                        <button id="homeFromValidate" class="btn btn-secondary">🏠 Home</button>
-                        <button id="generateFromValidate" class="btn btn-primary">📄 Generate Papers</button>
-                        <button id="generateMaterialFromValidate" class="btn btn-primary">🧾 Generate Material</button>
-                    </div>
+                    <h1>✓ Validate Answer Papers</h1>
+                    <p>Upload answer key and bubble/dot answer sheets for AI-powered validation and grading.</p>
                 </div>
 
-                <!-- Content for Validate Page -->
                 <div class="form-container">
-                    <h3 style="color: #0366d6; margin-bottom: 1.5rem;">✓ Answer Paper Validation with Answer Key</h3>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="answerPaperTitle">📝 Answer Paper Title</label>
-                            <input type="text" id="answerPaperTitle" class="form-control"
-                                placeholder="Enter answer paper title" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="studentCount">👥 Number of Students</label>
-                            <input type="number" id="studentCount" class="form-control"
-                                placeholder="Number of answer sheets" min="1" max="100" required>
-                        </div>
-                    </div>
+                    <h3 style="color: #0366d6; margin-bottom: 1.5rem;">✓ Answer Paper Validation</h3>
 
                     <!-- Answer Key Upload Section -->
                     <div class="form-group">
-                        <label>🔑 Upload Answer Key (Required)</label>
+                        <label>🗝️ Upload Answer Key (Required)</label>
                         <div class="file-upload" id="uploadAnswerKeyBtn">
                             <div style="pointer-events: none;">
-                                <div>🗝️</div>
+                                <div style="font-size: 2rem;">🗝️</div>
                                 <h4>Upload Answer Key</h4>
-                                <p>Upload the correct answer key for validation</p>
-                                <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, TXT</p>
+                                <p>Upload the correct answer key for validation (A, B, C, D format)</p>
+                                <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, TXT, Images</p>
                             </div>
                             <input type="file" id="answerKeyUpload" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
                         </div>
                         <div id="answerKeyInfo" style="margin-top: 0.5rem; display: none;">
-                            <div
-                                style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
                                 <span style="font-size: 1.2rem;">🗝️</span>
                                 <div>
                                     <div style="font-weight: 600;" id="answerKeyName">Answer Key</div>
                                     <div style="font-size: 0.85rem; color: #666;" id="answerKeySize"></div>
                                 </div>
-                                <button id="removeAnswerKeyBtn"
-                                    style="margin-left: auto; background: none; border: none; color: #dc3545; cursor: pointer;"
-                                    title="Remove answer key">🗑️</button>
+                                <button id="removeAnswerKeyBtn" style="margin-left: auto; background: none; border: none; color: #dc3545; cursor: pointer; font-size: 1.2rem;">🗑️</button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Answer Sheets Upload Section -->
                     <div class="form-group">
-                        <label>📤 Upload Answer Sheets</label>
+                        <label>📄 Upload Bubble/Dot Answer Sheets</label>
                         <div class="file-upload" id="uploadAnswersBtn">
                             <div style="pointer-events: none;">
-                                <div>📁</div>
+                                <div style="font-size: 2rem;">📁</div>
                                 <h4>Upload Answer Sheets</h4>
-                                <p>Click to upload answer sheets for validation</p>
-                                <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, Images</p>
+                                <p>Click to upload bubble/dot answer sheets for validation</p>
+                                <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, Images (JPG, PNG)</p>
                             </div>
                             <input type="file" id="answersUpload" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple>
                         </div>
@@ -577,18 +545,9 @@
 
                     <!-- Action Buttons -->
                     <div class="action-container">
-                        <button type="button" id="startValidationBtn" class="btn btn-primary" disabled>
-                            ✅ Start Validation with Answer Key
-                        </button>
-                        <button type="button" id="downloadResultsBtn" class="btn btn-success" disabled>
-                            📊 Download Results
-                        </button>
-                        <button type="button" id="clearFilesBtn" class="btn btn-warning">
-                            🗑️ Clear All Files
-                        </button>
-                        <button type="button" id="resetValidateFormBtn" class="btn btn-warning">
-                            🔄 Reset Form
-                        </button>
+                        <button type="button" id="startValidationBtn" class="btn btn-primary" disabled>🚀 Start Validation (50 Questions)</button>
+                        <button type="button" id="downloadResultsBtn" class="btn btn-success" disabled>📥 Download Results</button>
+                        <button type="button" id="resetValidateFormBtn" class="btn btn-warning">🔄 Reset Form</button>
                     </div>
 
                     <!-- Validation Progress -->
@@ -596,82 +555,27 @@
                         <h4 style="color: #0366d6; margin-bottom: 1rem;">📊 Validation Progress</h4>
                         <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; border: 1px solid #dee2e6;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                <span>Processing...</span>
+                                <span>Processing Bubble Sheets...</span>
                                 <span id="progressPercent">0%</span>
                             </div>
                             <div style="height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden;">
-                                <div id="progressBar"
-                                    style="height: 100%; background: #0366d6; width: 0%; transition: width 0.3s;"></div>
+                                <div id="progressBar" style="height: 100%; background: #0366d6; width: 0%; transition: width 0.3s;"></div>
                             </div>
-                            <div id="progressStatus" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
-                                Waiting to start...
-                            </div>
+                            <div id="progressStatus" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">Waiting to start...</div>
                         </div>
                     </div>
 
                     <!-- Results Preview -->
                     <div id="validationResults" class="preview-container" style="display: none;">
-                        <h4>📊 Validation Results with Answer Key</h4>
-                        <div id="resultsContent"
-                            style="background: rgb(127, 222, 248); padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;">
-                            <!-- Results will be inserted here -->
-                        </div>
+                        <h4>📊 Validation Results</h4>
+                        <div id="resultsContent" style="background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #dee2e6;"></div>
                     </div>
-                </div>
-
-                <!-- Bottom Navigation -->
-                <div class="section-navigation" style="margin-top: 2rem;">
-                    <button id="bottomHomeFromValidate" class="btn btn-secondary">🏠 Home</button>
-                    <button id="bottomGenerateFromValidate" class="btn btn-primary">📄 Generate Papers</button>
                 </div>
             </div>
         </section>
     </main>
 
     <script src="app.js"></script>
-    <script>
-// Add immediate health check when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Checking backend connection...');
-    
-    // Test if backend is reachable
-    fetch('http://localhost:5000/api/health', { 
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        // Short timeout
-        signal: AbortSignal.timeout(3000)
-    })
-    .then(response => {
-        if (response.ok) {
-            console.log('✅ Backend connection successful');
-            return response.json();
-        } else {
-            throw new Error('Backend not responding properly');
-        }
-    })
-    .then(data => {
-        console.log('Backend status:', data);
-        // You could show a success message or update UI
-    })
-    .catch(error => {
-        console.error('❌ Backend connection failed:', error);
-        // Show a warning to the user
-        const toast = document.getElementById('toast');
-        if (toast) {
-            const toastMessage = document.getElementById('toastMessage');
-            const toastIcon = document.getElementById('toastIcon');
-            if (toastMessage && toastIcon) {
-                toastIcon.textContent = '⚠️';
-                toastMessage.textContent = 'Backend server not detected. Make sure Flask is running on port 5000.';
-                toast.className = 'toast toast-warning show';
-                setTimeout(() => {
-                    toast.classList.remove('show');
-                }, 5000);
-            }
-        }
-    });
-});
-</script>
 </body>
 
 </html>

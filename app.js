@@ -1,30 +1,29 @@
-// app.js - COMPLETE FIXED VERSION WITH PDF DOWNLOAD AND IMPROVED QUESTION GENERATION
+// app.js - COMPLETE VERSION WITH VALIDATION MANAGEMENT (VIEW, DOWNLOAD, DELETE)
 
-// Use localhost for better compatibility
 const API_BASE_URL = 'http://localhost:5000/api';
-const USE_MOCK_API = false; // Set to false to use real Gemini AI
+const USE_MOCK_API = true;
 
 // State management
 let currentUser = null;
 let isLoggedIn = false;
 let currentSection = 'home';
 let token = null;
+let dashboardData = null;
+let paperHistory = [];
 
 // File upload state
 let uploadedFiles = [];
 let generatedPaperContent = null;
 let uploadedAnswerKey = null;
-// Material generation state
-let uploadedMaterialFile = null;
-let uploadedContextFile = null; // State for context material
-let generatedMaterial = null;
+let uploadedContextFile = null;
+let validationResultsData = null;
 
 // DOM Elements
 const sections = {
     home: document.getElementById('homeSection'),
     generate: document.getElementById('generateSection'),
     validate: document.getElementById('validateSection'),
-    generateMaterial: document.getElementById('generateMaterialSection')
+    dashboard: document.getElementById('dashboardSection')
 };
 
 // Toast system
@@ -39,21 +38,22 @@ function showToast(message, type = 'info', duration = 3000) {
         'warning': '⚠️'
     };
 
-    document.getElementById('toastIcon').textContent = icons[type] || 'ℹ️';
-    toastMessage.textContent = message;
-    toast.className = `toast toast-${type}`;
-
-    toast.classList.add('show');
+    const toastIcon = document.getElementById('toastIcon');
+    if (toastIcon) toastIcon.textContent = icons[type] || 'ℹ️';
+    if (toastMessage) toastMessage.textContent = message;
+    if (toast) {
+        toast.className = `toast toast-${type}`;
+        toast.classList.add('show');
+    }
 
     setTimeout(() => {
-        toast.classList.remove('show');
+        if (toast) toast.classList.remove('show');
     }, duration);
 }
 
-// Switch section
 function switchSection(sectionName) {
     Object.values(sections).forEach(section => {
-        section.classList.remove('active');
+        if (section) section.classList.remove('active');
     });
 
     if (sections[sectionName]) {
@@ -64,17 +64,17 @@ function switchSection(sectionName) {
     updateHeaderHomeButton();
 }
 
-// Update header Home button visibility
 function updateHeaderHomeButton() {
     const headerHomeBtn = document.getElementById('headerHomeBtn');
-    if (currentSection === 'home') {
-        headerHomeBtn.style.display = 'none';
-    } else {
-        headerHomeBtn.style.display = 'flex';
+    if (headerHomeBtn) {
+        if (currentSection === 'home') {
+            headerHomeBtn.style.display = 'none';
+        } else {
+            headerHomeBtn.style.display = 'flex';
+        }
     }
 }
 
-// Clear error messages
 function clearErrors() {
     document.querySelectorAll('.error-message').forEach(el => {
         el.style.display = 'none';
@@ -85,7 +85,6 @@ function clearErrors() {
     });
 }
 
-// Show error message
 function showError(elementId, message) {
     const errorElement = document.getElementById(elementId + 'Error');
     const inputElement = document.getElementById(elementId);
@@ -100,54 +99,53 @@ function showError(elementId, message) {
     }
 }
 
-// Validate email
 function validateEmail(email) {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
 }
 
-// Open modal function
 function openModal(modalId) {
     clearErrors();
-    document.getElementById(modalId).style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
 }
 
-// Close modal function
 function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
-    document.body.style.overflow = 'auto';
-    clearErrors();
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        clearErrors();
+    }
 }
 
-// Switch between forms
 function showLoginModal() {
     closeModal('registerModal');
-    closeModal('forgotPasswordModal');
     setTimeout(() => openModal('loginModal'), 300);
 }
 
 function showRegisterModal() {
     closeModal('loginModal');
-    closeModal('forgotPasswordModal');
     setTimeout(() => openModal('registerModal'), 300);
 }
 
-function showForgotPasswordModal() {
-    closeModal('loginModal');
-    closeModal('registerModal');
-    setTimeout(() => openModal('forgotPasswordModal'), 300);
+// Clear session function
+function clearSession() {
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('token');
 }
 
-// MOCK API FUNCTIONS - Use these when backend is not available
+// MOCK API FUNCTIONS
 const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+let mockPapers = JSON.parse(localStorage.getItem('mockPapers') || '[]');
+let mockValidations = JSON.parse(localStorage.getItem('mockValidations') || '[]');
 
-// Mock login function
 async function mockLogin(email, password) {
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-
+    await new Promise(resolve => setTimeout(resolve, 1000));
     const user = mockUsers.find(u => u.email === email.toLowerCase() && u.password === password);
-
     if (user) {
         return {
             success: true,
@@ -161,27 +159,14 @@ async function mockLogin(email, password) {
             token: 'mock_jwt_token_' + Date.now()
         };
     }
-
-    return {
-        success: false,
-        message: 'Invalid email or password'
-    };
+    return { success: false, message: 'Invalid email or password' };
 }
 
-// Mock register function
 async function mockRegister(name, email, password) {
     await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Check if user exists
     if (mockUsers.some(u => u.email === email.toLowerCase())) {
-        return {
-            success: false,
-            message: 'Email already registered',
-            field: 'email'
-        };
+        return { success: false, message: 'Email already registered', field: 'email' };
     }
-
-    // Create new user
     const newUser = {
         id: 'user_' + Date.now(),
         name: name,
@@ -189,10 +174,8 @@ async function mockRegister(name, email, password) {
         password: password,
         createdAt: new Date().toISOString()
     };
-
     mockUsers.push(newUser);
     localStorage.setItem('mockUsers', JSON.stringify(mockUsers));
-
     return {
         success: true,
         user: {
@@ -206,29 +189,125 @@ async function mockRegister(name, email, password) {
     };
 }
 
-// Mock forgot password function
-async function mockForgotPassword(email) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const mockToken = 'mock_reset_' + Date.now();
-    const resetLink = `${window.location.origin}/reset_password.html?token=${mockToken}`;
+// ========== QUESTION PAPER GENERATION ==========
+function generateQuestionPaper(data) {
+    const { title, subject, topics, difficulty, marks, instructions, date, time } = data;
+    
+    const subjectName = subject.charAt(0).toUpperCase() + subject.slice(1);
+    const topicList = (topics && topics !== 'General Topics') ? topics.split(',').map(t => t.trim()) : [subjectName];
+    const mainTopic = topicList[0];
+    
+    let content = '';
+    
+    content += `\n\n`;
+    content += `================================================================================\n`;
+    content += `${title.toUpperCase()}\n`;
+    content += `================================================================================\n\n`;
+    
+    content += `Subject: ${subjectName}\n`;
+    content += `Date: ${date}\n`;
+    content += `Time: ${time} minutes\n`;
+    content += `Maximum Marks: ${marks}\n`;
+    content += `Difficulty: ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}\n`;
+    content += `Topics: ${topics || 'General'}\n\n`;
+    
+    content += `--------------------------------------------------------------------------------\n`;
+    content += `GENERAL INSTRUCTIONS\n`;
+    content += `--------------------------------------------------------------------------------\n`;
+    content += `1. All questions are compulsory unless specified otherwise.\n`;
+    content += `2. Write clearly and legibly.\n`;
+    content += `3. Marks for each question are indicated against it.\n`;
+    content += `4. Read each question carefully before answering.\n`;
+    if (instructions) {
+        content += `5. ${instructions}\n`;
+    }
+    content += `\n`;
+    
+    content += `--------------------------------------------------------------------------------\n`;
+    content += `SECTION A: Multiple Choice Questions                                    [5 Marks]\n`;
+    content += `--------------------------------------------------------------------------------\n`;
+    content += `(Attempt all questions)\n\n`;
+    
+    const mcqQuestions = [
+        { q: `What is the fundamental concept of ${mainTopic}?`, 
+          options: ['(a) Basic principle', '(b) Advanced theory', '(c) Applied concept', '(d) Historical view'] },
+        { q: `What is the Guidance Method in ${mainTopic}?`, 
+          options: ['(a) Heuristic', '(b) Blind', '(c) Exhaustive', '(d) Iterative'] },
+        { q: `The Primary Strategy in ${mainTopic} is related to:`, 
+          options: ['(a) Global', '(b) Local', '(c) Uniform', '(d) Random'] },
+        { q: `Who is considered a pioneer in ${mainTopic}?`, 
+          options: ['(a) Researcher A', '(b) Researcher B', '(c) Researcher C', '(d) Researcher D'] },
+        { q: `Which statement is TRUE about ${mainTopic}?`, 
+          options: ['(a) Statement 1', '(b) Statement 2', '(c) Statement 3', '(d) Statement 4'] }
+    ];
+    
+    for (let i = 0; i < 5; i++) {
+        const mq = mcqQuestions[i];
+        content += `${i + 1}. ${mq.q}\n`;
+        content += `   ${mq.options.join('\n   ')}\n`;
+        content += `                                                              [1 mark]\n\n`;
+    }
+    content += `\n`;
+    
+    content += `--------------------------------------------------------------------------------\n`;
+    content += `SECTION B: Short Answer Questions                                   [10 Marks]\n`;
+    content += `--------------------------------------------------------------------------------\n`;
+    content += `(Attempt any 2 questions)\n\n`;
+    
+    const shortQuestions = [
+        `Define and explain the basic concepts of ${mainTopic}. Provide suitable examples.`,
+        `Write short notes on the importance and applications of ${mainTopic} in daily life.`,
+        `Explain any three key characteristics or features of ${mainTopic} with examples.`
+    ];
+    
+    for (let i = 0; i < 3; i++) {
+        content += `${i + 1}. ${shortQuestions[i]}\n`;
+        content += `                                                             [5 marks]\n\n`;
+    }
+    content += `Note: Answer any 2 out of the above 3 questions. (2 x 5 = 10 marks)\n\n`;
+    
+    content += `--------------------------------------------------------------------------------\n`;
+    content += `SECTION C: Long Answer Questions                                    [10 Marks]\n`;
+    content += `--------------------------------------------------------------------------------\n`;
+    content += `(Attempt any 1 question)\n\n`;
+    
+    const longQuestions = [
+        `Discuss in detail the fundamental principles, theories, and applications of ${mainTopic}.`,
+        `Critically evaluate the various approaches and contemporary issues related to ${mainTopic}.`
+    ];
+    
+    for (let i = 0; i < 2; i++) {
+        content += `${i + 1}. ${longQuestions[i]}\n`;
+        content += `                                                            [10 marks]\n\n`;
+    }
+    content += `Note: Answer any 1 out of the above 2 questions. (1 x 10 = 10 marks)\n\n`;
+    
+    content += `\n`;
+    content += `================================================================================\n`;
+    content += `BEST WISHES\n`;
+    content += `================================================================================\n`;
+    
+    return content;
+}
+
+async function mockGeneratePaper(data) {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const content = generateQuestionPaper(data);
     return {
         success: true,
-        message: 'If an account exists with this email, you will receive a password reset link shortly.',
-        reset_link: resetLink,
-        token: mockToken
+        content: content,
+        used_context: !!data.contextFile
     };
 }
 
-// Handle login with fallback to mock API
+// Handle login
 async function handleLogin(e) {
     e.preventDefault();
     clearErrors();
 
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
-    const rememberMe = document.getElementById('rememberMe').checked;
 
-    // Validate inputs
     let isValid = true;
 
     if (!email) {
@@ -246,7 +325,6 @@ async function handleLogin(e) {
 
     if (!isValid) return;
 
-    // Show loading
     const loginBtnText = document.getElementById('loginBtnText');
     const loginLoading = document.getElementById('loginLoading');
     const loginSubmitBtn = document.getElementById('loginSubmitBtn');
@@ -255,97 +333,39 @@ async function handleLogin(e) {
     loginSubmitBtn.disabled = true;
 
     try {
-        let response;
-
-        if (USE_MOCK_API) {
-            // Use mock API
-            response = await mockLogin(email, password);
-        } else {
-            // Try real API
-            try {
-                console.log('Attempting login to:', `${API_BASE_URL}/login`);
-                
-                const apiResponse = await fetch(`${API_BASE_URL}/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        email: email.toLowerCase(), 
-                        password: password 
-                    })
-                });
-
-                console.log('Login response status:', apiResponse.status);
-                
-                if (apiResponse.ok) {
-                    const data = await apiResponse.json();
-                    console.log('Login successful:', data);
-                    response = { success: true, ...data };
-                } else {
-                    const errorData = await apiResponse.json().catch(() => ({}));
-                    console.log('Login failed:', errorData);
-                    response = { 
-                        success: false, 
-                        message: errorData.message || 'Invalid credentials. Please check your email and password.' 
-                    };
-                }
-            } catch (apiError) {
-                console.error('Backend API connection error:', apiError);
-                showToast('Backend server is not responding. Please check if the server is running on port 5000.', 'error');
-                // Fallback to mock API
-                response = await mockLogin(email, password);
-            }
-        }
+        let response = await mockLogin(email, password);
 
         if (response.success) {
-            // Login successful
             currentUser = response.user;
             isLoggedIn = true;
             token = response.token;
 
-            // Save to localStorage if remember me is checked
-            if (rememberMe) {
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                localStorage.setItem('token', token);
-            } else {
-                // Still save to session storage for the current session
-                sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-                sessionStorage.setItem('token', token);
-            }
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+            sessionStorage.setItem('token', token);
 
-            // Close modal
             closeModal('loginModal');
-
-            // Show success message
             showToast(`Welcome back, ${response.user.name}!`, 'success');
-
-            // Reset form
             document.getElementById('loginForm').reset();
-
-            // Update UI
             updateUIForLoginStatus();
-
-            // Return to home page
-            switchSection('home');
+            
+            if (currentSection === 'dashboard') {
+                loadDashboard();
+            }
         } else {
-            // Login failed
             showError('loginEmail', response.message || 'Invalid credentials');
-            showError('loginPassword', response.message || 'Invalid credentials');
-            showToast(response.message || 'Login failed. Please check your credentials.', 'error');
+            showToast(response.message || 'Login failed.', 'error');
         }
     } catch (error) {
         console.error('Login error:', error);
-        showToast('An error occurred. Please try again. ' + error.message, 'error');
+        showToast('An error occurred. Please try again.', 'error');
     } finally {
-        // Hide loading
         loginBtnText.style.display = 'inline';
         loginLoading.style.display = 'none';
         loginSubmitBtn.disabled = false;
     }
 }
 
-// Handle registration with fallback to mock API
+// Handle registration
 async function handleRegister(e) {
     e.preventDefault();
     clearErrors();
@@ -356,7 +376,6 @@ async function handleRegister(e) {
     const confirmPassword = document.getElementById('regConfirmPassword').value;
     const agreeTerms = document.getElementById('agreeTerms').checked;
 
-    // Validate inputs
     let isValid = true;
 
     if (!name) {
@@ -398,7 +417,6 @@ async function handleRegister(e) {
 
     if (!isValid) return;
 
-    // Show loading
     const registerBtnText = document.getElementById('registerBtnText');
     const registerLoading = document.getElementById('registerLoading');
     const registerSubmitBtn = document.getElementById('registerSubmitBtn');
@@ -407,78 +425,21 @@ async function handleRegister(e) {
     registerSubmitBtn.disabled = true;
 
     try {
-        let response;
-
-        if (USE_MOCK_API) {
-            // Use mock API
-            response = await mockRegister(name, email, password);
-        } else {
-            // Try real API
-            try {
-                console.log('Attempting registration to:', `${API_BASE_URL}/register`);
-                
-                const apiResponse = await fetch(`${API_BASE_URL}/register`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        name: name,
-                        email: email.toLowerCase(),
-                        password: password
-                    })
-                });
-
-                console.log('Registration response status:', apiResponse.status);
-                
-                if (apiResponse.ok) {
-                    const data = await apiResponse.json();
-                    console.log('Registration successful:', data);
-                    response = { success: true, ...data };
-                } else {
-                    const errorData = await apiResponse.json().catch(() => ({}));
-                    console.log('Registration failed:', errorData);
-                    response = {
-                        success: false,
-                        message: errorData.message || 'Registration failed',
-                        field: errorData.field || 'regEmail'
-                    };
-                }
-            } catch (apiError) {
-                console.error('Backend API connection error:', apiError);
-                showToast('Backend server is not responding. Please check if the server is running on port 5000.', 'error');
-                // Fallback to mock API
-                response = await mockRegister(name, email, password);
-            }
-        }
+        let response = await mockRegister(name, email, password);
 
         if (response.success) {
-            // Registration successful
             currentUser = response.user;
             isLoggedIn = true;
             token = response.token;
 
-            // Auto-login the new user
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            localStorage.setItem('token', token);
+            sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+            sessionStorage.setItem('token', token);
 
-            // Close modal
             closeModal('registerModal');
-
-            // Show success message
             showToast(`Account created successfully! Welcome, ${name}!`, 'success');
-
-            // Reset form
             document.getElementById('registerForm').reset();
-            document.getElementById('passwordStrength').className = 'strength-bar';
-
-            // Update UI
             updateUIForLoginStatus();
-
-            // Return to home page
-            switchSection('home');
         } else {
-            // Registration failed
             if (response.field) {
                 showError(response.field, response.message);
             } else {
@@ -490,335 +451,143 @@ async function handleRegister(e) {
         console.error('Registration error:', error);
         showToast('An error occurred. Please try again.', 'error');
     } finally {
-        // Hide loading
         registerBtnText.style.display = 'inline';
         registerLoading.style.display = 'none';
         registerSubmitBtn.disabled = false;
     }
 }
 
-// Handle forgot password with fallback to mock API
-async function handleForgotPassword(e) {
-    e.preventDefault();
-    clearErrors();
-
-    const email = document.getElementById('forgotEmail').value.trim();
-
-    // Validate email
-    if (!email) {
-        showError('forgotEmail', 'Email is required');
-        return;
-    }
-
-    if (!validateEmail(email)) {
-        showError('forgotEmail', 'Please enter a valid email address');
-        return;
-    }
-
-    // Show loading
-    const forgotBtnText = document.getElementById('forgotBtnText');
-    const forgotLoading = document.getElementById('forgotLoading');
-    const forgotSubmitBtn = document.getElementById('forgotSubmitBtn');
-    forgotBtnText.style.display = 'none';
-    forgotLoading.style.display = 'inline-block';
-    forgotSubmitBtn.disabled = true;
-
-    try {
-        let response;
-
-        if (USE_MOCK_API) {
-            // Use mock API
-            response = await mockForgotPassword(email);
-        } else {
-            // Try real API
-            try {
-                console.log('Attempting forgot password to:', `${API_BASE_URL}/forgot-password`);
-                
-                const apiResponse = await fetch(`${API_BASE_URL}/forgot-password`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ email: email.toLowerCase() })
-                });
-
-                console.log('Forgot password response status:', apiResponse.status);
-                
-                if (apiResponse.ok) {
-                    const data = await apiResponse.json();
-                    console.log('Forgot password successful:', data);
-                    response = { success: true, ...data };
-                } else {
-                    const errorData = await apiResponse.json().catch(() => ({}));
-                    console.log('Forgot password failed:', errorData);
-                    response = { success: false, message: errorData.message || 'Request failed' };
-                }
-            } catch (apiError) {
-                console.error('Backend API connection error:', apiError);
-                showToast('Backend server is not responding. Please check if the server is running on port 5000.', 'error');
-                // Fallback to mock API
-                response = await mockForgotPassword(email);
-            }
-        }
-
-        if (response.success) {
-            // Show success message
-            showToast(response.message || 'If an account exists with this email, you will receive a password reset link shortly.', 'success');
-            if (response.reset_link) {
-                console.info('Password reset link (DEV):', response.reset_link);
-                // Show the reset link in a toast for local debugging when using mock API
-                if (USE_MOCK_API) showToast('Reset Link: ' + response.reset_link, 'info');
-            }
-
-            // Reset form
-            document.getElementById('forgotPasswordForm').reset();
-
-            // Close modal after delay
-            setTimeout(() => {
-                closeModal('forgotPasswordModal');
-                showLoginModal();
-            }, 2000);
-        } else {
-            showError('forgotEmail', response.message || 'Request failed');
-            showToast(response.message || 'Request failed', 'error');
-        }
-    } catch (error) {
-        console.error('Forgot password error:', error);
-        showToast('An error occurred. Please try again.', 'error');
-    } finally {
-        // Hide loading
-        forgotBtnText.style.display = 'inline';
-        forgotLoading.style.display = 'none';
-        forgotSubmitBtn.disabled = false;
-    }
-}
-
-// Update UI based on login status
 function updateUIForLoginStatus() {
     const loginBtn = document.getElementById('loginBtn');
     const registerBtn = document.getElementById('registerBtn');
     const loginRequired = document.getElementById('loginRequired');
     const welcomeSection = document.getElementById('welcomeSection');
+    const dashboardNavBtn = document.getElementById('dashboardNavBtn');
 
     if (isLoggedIn && currentUser) {
-        // User is logged in
-        loginBtn.innerHTML = '👤 Logout';
-        loginBtn.classList.remove('btn-primary');
-        loginBtn.classList.add('btn-secondary');
-        registerBtn.style.display = 'none';
-
-        // Update home page content
+        if (loginBtn) {
+            loginBtn.innerHTML = '👤 Logout';
+            loginBtn.classList.remove('btn-primary');
+            loginBtn.classList.add('btn-secondary');
+        }
+        if (registerBtn) registerBtn.style.display = 'none';
         if (loginRequired) loginRequired.style.display = 'none';
         if (welcomeSection) welcomeSection.style.display = 'block';
+        if (dashboardNavBtn) dashboardNavBtn.style.display = 'inline-block';
         
-        // Update welcome message with user name
         const welcomeMessage = document.getElementById('welcomeMessage');
         if (welcomeMessage) {
             welcomeMessage.textContent = `Welcome back, ${currentUser.name}!`;
         }
     } else {
-        // User is not logged in
-        loginBtn.innerHTML = '🔐 Login';
-        loginBtn.classList.remove('btn-secondary');
-        loginBtn.classList.add('btn-primary');
-        registerBtn.style.display = 'inline-block';
-
-        // Update home page content
+        if (loginBtn) {
+            loginBtn.innerHTML = '🔐 Login';
+            loginBtn.classList.remove('btn-secondary');
+            loginBtn.classList.add('btn-primary');
+        }
+        if (registerBtn) registerBtn.style.display = 'inline-block';
         if (loginRequired) loginRequired.style.display = 'block';
         if (welcomeSection) welcomeSection.style.display = 'none';
+        if (dashboardNavBtn) dashboardNavBtn.style.display = 'none';
     }
 }
 
-// Logout function
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
-        // Reset all form states
         resetGenerateForm();
         resetValidateForm();
-        resetMaterialForm();
-
-        // Clear user state
         currentUser = null;
         isLoggedIn = false;
         token = null;
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('token');
+        dashboardData = null;
+        paperHistory = [];
+        
         sessionStorage.removeItem('currentUser');
         sessionStorage.removeItem('token');
-
-        // Update UI
+        
         updateUIForLoginStatus();
-
-        // Show success message
-        showToast('Logged out successfully! All forms have been reset.', 'success');
-
-        // Return to home page
-        switchSection('home');
-
-        // Update header Home button
-        updateHeaderHomeButton();
+        showToast('Logged out successfully!', 'success');
+        switchToHome();
     }
 }
 
-// Reset Generate Form completely
 function resetGenerateForm() {
-    // Reset the form fields
-    document.getElementById('questionPaperForm').reset();
+    const form = document.getElementById('questionPaperForm');
+    if (form) {
+        form.reset();
+    }
 
     const paperPreview = document.getElementById('paperPreview');
     const downloadPaperBtn = document.getElementById('downloadPaperBtn');
     const paperDateInput = document.getElementById('paperDate');
 
-    // Reset date to today
-    paperDateInput.valueAsDate = new Date();
-
-    // Reset preview section
-    paperPreview.style.display = 'none';
-
-    // Reset download button
-    downloadPaperBtn.disabled = true;
-    downloadPaperBtn.classList.add('btn-disabled');
-    downloadPaperBtn.classList.remove('btn-success');
-
-    // Reset generated paper content
-    generatedPaperContent = null;
-
-    // Reset the source upload
-    uploadedContextFile = null;
-    const sourceUpload = document.getElementById('sourceUpload');
-    if (sourceUpload) {
-        sourceUpload.value = ''; // Clear the file input
+    if (paperDateInput) paperDateInput.valueAsDate = new Date();
+    if (paperPreview) paperPreview.style.display = 'none';
+    if (downloadPaperBtn) {
+        downloadPaperBtn.disabled = true;
+        downloadPaperBtn.classList.add('btn-disabled');
+        downloadPaperBtn.classList.remove('btn-success');
     }
-
-    // Reset source file info display
+    generatedPaperContent = null;
+    uploadedContextFile = null;
+    
+    const sourceUpload = document.getElementById('sourceUpload');
+    if (sourceUpload) sourceUpload.value = '';
     const sourceFileInfo = document.getElementById('sourceFileInfo');
     if (sourceFileInfo) sourceFileInfo.style.display = 'none';
-
-    // Reset the upload button appearance
     const uploadSourceBtn = document.getElementById('uploadSourceBtn');
-    if (uploadSourceBtn) {
-        uploadSourceBtn.style.display = 'block';
-    }
+    if (uploadSourceBtn) uploadSourceBtn.style.display = 'block';
+
+    const checkboxes = document.querySelectorAll('#questionPaperForm input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        if (cb.id === 'qtype_mcq') cb.checked = true;
+        else if (cb.id === 'qtype_short') cb.checked = true;
+        else if (cb.id === 'qtype_long') cb.checked = true;
+        else cb.checked = false;
+    });
 
     showToast('Generate form has been reset', 'info');
 }
 
-// Reset Validate Form completely
 function resetValidateForm() {
-    // Clear uploaded files
     uploadedFiles = [];
     uploadedAnswerKey = null;
+    validationResultsData = null;
 
-    // Reset file list display
     const fileList = document.getElementById('fileList');
-    fileList.innerHTML = '<p style="color: #666; font-style: italic; padding: 1rem; text-align: center;">No answer sheets uploaded yet</p>';
+    if (fileList) {
+        fileList.innerHTML = '<p style="color: #666; font-style: italic; padding: 1rem; text-align: center;">No answer sheets uploaded yet</p>';
+    }
 
-    // Reset answer key info
     const answerKeyInfo = document.getElementById('answerKeyInfo');
-    answerKeyInfo.style.display = 'none';
+    if (answerKeyInfo) answerKeyInfo.style.display = 'none';
 
-    // Reset input fields
-    document.getElementById('answerPaperTitle').value = '';
-    document.getElementById('studentCount').value = '';
+    const answerKeyUpload = document.getElementById('answerKeyUpload');
+    const answersUpload = document.getElementById('answersUpload');
+    if (answerKeyUpload) answerKeyUpload.value = '';
+    if (answersUpload) answersUpload.value = '';
 
-    // Reset upload buttons
-    const uploadAnswersBtn = document.getElementById('uploadAnswersBtn');
-    const uploadAnswerKeyBtn = document.getElementById('uploadAnswerKeyBtn');
-
-    if (uploadAnswersBtn) {
-        const answersInnerDiv = uploadAnswersBtn.querySelector('div');
-        if (answersInnerDiv) {
-            answersInnerDiv.innerHTML = `
-                <div>📁</div>
-                <h4>Upload Answer Sheets</h4>
-                <p>Click to upload answer sheets for validation</p>
-                <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, Images</p>
-            `;
-        }
-    }
-
-    if (uploadAnswerKeyBtn) {
-        const answerKeyInnerDiv = uploadAnswerKeyBtn.querySelector('div');
-        if (answerKeyInnerDiv) {
-            answerKeyInnerDiv.innerHTML = `
-                <div>🗝️</div>
-                <h4>Upload Answer Key</h4>
-                <p>Upload the correct answer key for validation</p>
-                <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, TXT</p>
-            `;
-        }
-    }
-
-    // Reset file inputs
-    document.getElementById('answerKeyUpload').value = '';
-    document.getElementById('answersUpload').value = '';
-
-    // Reset results and progress sections
     const validationResults = document.getElementById('validationResults');
     const validationProgress = document.getElementById('validationProgress');
-    validationResults.style.display = 'none';
-    validationProgress.style.display = 'none';
+    if (validationResults) validationResults.style.display = 'none';
+    if (validationProgress) validationProgress.style.display = 'none';
 
-    // Reset buttons state
     const startValidationBtn = document.getElementById('startValidationBtn');
     const downloadResultsBtn = document.getElementById('downloadResultsBtn');
-    startValidationBtn.disabled = true;
-    startValidationBtn.classList.add('btn-disabled');
-    startValidationBtn.classList.remove('btn-primary');
-    downloadResultsBtn.disabled = true;
-    downloadResultsBtn.classList.add('btn-disabled');
-    downloadResultsBtn.classList.remove('btn-success');
+    if (startValidationBtn) {
+        startValidationBtn.disabled = true;
+        startValidationBtn.classList.add('btn-disabled');
+        startValidationBtn.classList.remove('btn-primary');
+    }
+    if (downloadResultsBtn) {
+        downloadResultsBtn.disabled = true;
+        downloadResultsBtn.classList.add('btn-disabled');
+        downloadResultsBtn.classList.remove('btn-success');
+    }
 
     showToast('Validate form has been reset', 'info');
 }
 
-// Reset Material Form
-function resetMaterialForm() {
-    uploadedMaterialFile = null;
-    const materialInput = document.getElementById('materialUpload');
-    if (materialInput) materialInput.value = '';
-    
-    const info = document.getElementById('materialFileInfo');
-    if (info) info.style.display = 'none';
-    
-    const generateBtn = document.getElementById('generateMaterialBtn');
-    if (generateBtn) generateBtn.disabled = true;
-    
-    const downloadBtn = document.getElementById('downloadMaterialBtn');
-    if (downloadBtn) downloadBtn.disabled = true;
-    
-    const preview = document.getElementById('materialPreview');
-    if (preview) preview.style.display = 'none';
-    
-    generatedMaterial = null;
-    
-    // Reset form fields
-    const summaryLength = document.getElementById('summaryLength');
-    const notesCount = document.getElementById('notesCount');
-    const mt_oneword = document.getElementById('mt_oneword');
-    const mt_summary = document.getElementById('mt_summary');
-    const mt_2marks = document.getElementById('mt_2marks');
-    const mt_long = document.getElementById('mt_long');
-    const mt_essay = document.getElementById('mt_essay');
-    const materialDifficulty = document.getElementById('materialDifficulty');
-    const materialTopics = document.getElementById('materialTopics');
-    const materialInstructions = document.getElementById('materialInstructions');
-    
-    if (summaryLength) summaryLength.value = 'medium';
-    if (notesCount) notesCount.value = '5';
-    if (mt_oneword) mt_oneword.checked = false;
-    if (mt_summary) mt_summary.checked = true;
-    if (mt_2marks) mt_2marks.checked = false;
-    if (mt_long) mt_long.checked = false;
-    if (mt_essay) mt_essay.checked = false;
-    if (materialDifficulty) materialDifficulty.value = 'medium';
-    if (materialTopics) materialTopics.value = '';
-    if (materialInstructions) materialInstructions.value = '';
-    
-    showToast('Material form reset', 'info');
-}
-
-// Helper function to format file size
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -827,13 +596,812 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Generate Paper Functions
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/[&"'<>]/g, function(c) {
+        return { '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' }[c];
+    });
+}
+
+// ========== DASHBOARD FUNCTIONS WITH VALIDATION MANAGEMENT ==========
+
+async function loadDashboard() {
+    if (!isLoggedIn || !token) {
+        showToast('Please login to view dashboard', 'warning');
+        return;
+    }
+    
+    showToast('Loading dashboard...', 'info');
+    
+    try {
+        const userPapers = mockPapers.filter(paper => paper.user_id === currentUser._id);
+        const totalPapers = userPapers.length;
+        
+        const userValidations = mockValidations.filter(val => val.user_id === currentUser._id);
+        const totalValidations = userValidations.length;
+        
+        // Fixed member since date - January 12, 2026
+        const memberSince = "2026-01-12T00:00:00.000Z";
+        
+        const dashboardData = {
+            stats: {
+                total_papers: totalPapers,
+                total_validations: totalValidations,
+                member_since: memberSince
+            },
+            recent_papers: userPapers.slice(0, 5),
+            recent_validations: userValidations.slice(0, 5)
+        };
+        
+        renderDashboard(dashboardData);
+        showToast('Dashboard loaded successfully', 'success');
+        
+    } catch (error) {
+        console.error('Dashboard error:', error);
+        showToast('Error loading dashboard', 'error');
+        renderDashboard({
+            stats: { total_papers: 0, total_validations: 0, member_since: "2026-01-12T00:00:00.000Z" },
+            recent_papers: [],
+            recent_validations: []
+        });
+    }
+}
+
+function renderDashboard(data) {
+    const dashboardContent = document.getElementById('dashboardContent');
+    if (!dashboardContent) return;
+    
+    // Fixed member date - January 12, 2026
+    const memberDate = "January 12, 2026";
+    
+    let html = `
+        <div class="dashboard-welcome">
+            <h2>👋 Welcome, ${escapeHtml(currentUser?.name || 'User')}!</h2>
+            <p>Here's your activity summary and recent work.</p>
+        </div>
+        
+        <div class="dashboard-stats">
+            <div class="stat-card">
+                <div class="stat-icon">📄</div>
+                <div class="stat-info">
+                    <div class="stat-value">${data.stats.total_papers}</div>
+                    <div class="stat-label">Question Papers Generated</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✓</div>
+                <div class="stat-info">
+                    <div class="stat-value">${data.stats.total_validations}</div>
+                    <div class="stat-label">Answer Sheets Validated</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-info">
+                    <div class="stat-value">${memberDate}</div>
+                    <div class="stat-label">Member Since</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h3>📄 Recent Question Papers</h3>
+                <button class="btn-view-all" onclick="viewAllPapers()">View All →</button>
+            </div>
+            <div class="papers-list">
+    `;
+    
+    if (data.recent_papers.length === 0) {
+        html += `<div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>No papers generated yet.</p>
+            <button onclick="switchToGenerate()" class="btn btn-primary btn-sm" style="margin-top: 1rem;">Create your first paper →</button>
+        </div>`;
+    } else {
+        for (const paper of data.recent_papers) {
+            html += `
+                <div class="paper-item" data-paper-id="${paper.id}">
+                    <div class="paper-info">
+                        <div class="paper-title">${escapeHtml(paper.title)}</div>
+                        <div class="paper-meta">
+                            <span class="badge badge-subject">${escapeHtml(paper.subject)}</span>
+                            <span class="badge badge-difficulty ${paper.difficulty}">${paper.difficulty}</span>
+                            <span class="paper-marks">📊 ${paper.total_marks} marks</span>
+                        </div>
+                    </div>
+                    <div class="paper-actions">
+                        <button class="btn-icon" onclick="viewPaperDetails('${paper.id}')" title="View Paper">👁️</button>
+                        <button class="btn-icon" onclick="downloadPaperFromHistory('${paper.id}')" title="Download PDF">📥</button>
+                        <button class="btn-icon delete-btn" onclick="deletePaperFromHistory('${paper.id}')" title="Delete">🗑️</button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    html += `
+            </div>
+        </div>
+        
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h3>✓ Recent Validations</h3>
+                <button class="btn-view-all" onclick="viewAllValidations()">View All →</button>
+            </div>
+            <div class="validations-list">
+    `;
+    
+    if (data.recent_validations.length === 0) {
+        html += `<div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>No validations performed yet.</p>
+            <button onclick="switchToValidate()" class="btn btn-primary btn-sm" style="margin-top: 1rem;">Validate your first answer sheet →</button>
+        </div>`;
+    } else {
+        for (const val of data.recent_validations) {
+            const avgPercent = parseFloat(val.average_marks);
+            const difficultyClass = avgPercent >= 70 ? 'easy' : (avgPercent >= 50 ? 'medium' : 'hard');
+            html += `
+                <div class="validation-item" data-validation-id="${val.id}">
+                    <div class="validation-info">
+                        <div class="validation-title">Validation #${val.id?.slice(-8) || 'N/A'}</div>
+                        <div class="validation-meta">
+                            <span class="badge badge-subject">📊 ${val.total_students} students</span>
+                            <span class="badge badge-difficulty ${difficultyClass}">⭐ Avg: ${val.average_marks}%</span>
+                        </div>
+                    </div>
+                    <div class="validation-actions">
+                        <button class="btn-icon" onclick="viewValidationDetails('${val.id}')" title="View Details">👁️</button>
+                        <button class="btn-icon" onclick="downloadValidationDetails('${val.id}')" title="Download CSV">📥</button>
+                        <button class="btn-icon delete-btn" onclick="deleteValidationFromHistory('${val.id}')" title="Delete">🗑️</button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    html += `
+            </div>
+        </div>
+        
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h3>⚡ Quick Actions</h3>
+            </div>
+            <div class="quick-actions">
+                <button class="quick-action-btn" onclick="switchToGenerate()">
+                    <span class="action-icon">✨</span>
+                    <span>Generate New Paper</span>
+                </button>
+                <button class="quick-action-btn" onclick="switchToValidate()">
+                    <span class="action-icon">✓</span>
+                    <span>Validate Answers</span>
+                </button>
+                <button class="quick-action-btn" onclick="viewAllPapers()">
+                    <span class="action-icon">📚</span>
+                    <span>View All Papers</span>
+                </button>
+                <button class="quick-action-btn" onclick="viewAllValidations()">
+                    <span class="action-icon">📊</span>
+                    <span>View All Validations</span>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    dashboardContent.innerHTML = html;
+}
+
+// ========== PAPER HISTORY FUNCTIONS ==========
+
+async function loadPaperHistory() {
+    if (!isLoggedIn || !token) {
+        showToast('Please login to view history', 'warning');
+        return;
+    }
+    
+    showToast('Loading history...', 'info');
+    
+    try {
+        const userPapers = mockPapers.filter(paper => paper.user_id === currentUser._id);
+        renderHistoryPage(userPapers);
+        showToast('History loaded successfully', 'success');
+    } catch (error) {
+        console.error('History error:', error);
+        showToast('Error loading history', 'error');
+        renderHistoryPage([]);
+    }
+}
+
+function renderHistoryPage(papers) {
+    const dashboardContent = document.getElementById('dashboardContent');
+    if (!dashboardContent) return;
+    
+    if (papers.length === 0) {
+        dashboardContent.innerHTML = `
+            <div class="empty-history">
+                <div class="empty-icon">📭</div>
+                <h3>No Question Papers Yet</h3>
+                <p>You haven't generated any question papers. Click the button below to create your first paper.</p>
+                <button class="btn btn-primary" onclick="switchToGenerate()">✨ Generate Question Paper</button>
+                <button class="btn btn-secondary" onclick="loadDashboard()" style="margin-top: 1rem;">← Back to Dashboard</button>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="history-header">
+            <h2>📚 Your Question Paper History</h2>
+            <p>Total papers generated: <strong>${papers.length}</strong></p>
+            <button class="btn btn-secondary" onclick="loadDashboard()" style="margin-top: 1rem;">← Back to Dashboard</button>
+        </div>
+        <div class="history-filters">
+            <input type="text" id="historySearch" placeholder="Search by title or subject..." class="form-control" onkeyup="filterHistory()">
+            <select id="historyFilter" class="form-control" onchange="filterHistory()">
+                <option value="all">All Papers</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+        </div>
+        <div class="history-list" id="historyList">
+    `;
+    
+    for (const paper of papers) {
+        const types = paper.question_types?.join(', ') || 'MCQ, Short, Long';
+        
+        html += `
+            <div class="history-item" data-paper-id="${paper.id}" data-difficulty="${paper.difficulty}" data-search="${paper.title} ${paper.subject}">
+                <div class="history-item-header">
+                    <div class="history-title">${escapeHtml(paper.title)}</div>
+                </div>
+                <div class="history-details">
+                    <div class="detail"><span class="detail-label">Subject:</span> ${escapeHtml(paper.subject)}</div>
+                    <div class="detail"><span class="detail-label">Topics:</span> ${escapeHtml(paper.topics || 'General')}</div>
+                    <div class="detail"><span class="detail-label">Difficulty:</span> 
+                        <span class="badge-difficulty ${paper.difficulty}">${paper.difficulty}</span>
+                    </div>
+                    <div class="detail"><span class="detail-label">Marks:</span> ${paper.total_marks}</div>
+                    <div class="detail"><span class="detail-label">Question Types:</span> ${types}</div>
+                </div>
+                <div class="history-actions">
+                    <button class="btn btn-sm btn-primary" onclick="viewPaperDetails('${paper.id}')">👁️ View Paper</button>
+                    <button class="btn btn-sm btn-success" onclick="downloadPaperFromHistory('${paper.id}')">📥 Download PDF</button>
+                    <button class="btn btn-sm btn-danger" onclick="deletePaperFromHistory('${paper.id}')">🗑️ Delete</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+    dashboardContent.innerHTML = html;
+}
+
+function filterHistory() {
+    const searchTerm = document.getElementById('historySearch')?.value.toLowerCase() || '';
+    const difficultyFilter = document.getElementById('historyFilter')?.value || 'all';
+    
+    const items = document.querySelectorAll('.history-item');
+    
+    items.forEach(item => {
+        const searchText = item.dataset.search?.toLowerCase() || '';
+        const difficulty = item.dataset.difficulty || '';
+        
+        let matchesSearch = searchTerm === '' || searchText.includes(searchTerm);
+        let matchesDifficulty = difficultyFilter === 'all' || difficulty === difficultyFilter;
+        
+        item.style.display = matchesSearch && matchesDifficulty ? 'block' : 'none';
+    });
+}
+
+async function savePaperToHistory(paperData) {
+    if (!isLoggedIn || !token) {
+        showToast('Please login to save papers to history', 'warning');
+        return;
+    }
+    
+    try {
+        const newPaper = {
+            id: 'paper_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            user_id: currentUser._id,
+            ...paperData,
+            created_at: new Date().toISOString()
+        };
+        
+        mockPapers.push(newPaper);
+        localStorage.setItem('mockPapers', JSON.stringify(mockPapers));
+        
+        showToast('Paper saved to history', 'success');
+        
+        if (currentSection === 'dashboard') {
+            await loadDashboard();
+        }
+    } catch (error) {
+        console.error('Save paper error:', error);
+        showToast('Error saving paper', 'error');
+    }
+}
+
+async function viewPaperDetails(paperId) {
+    showToast('Loading paper...', 'info');
+    
+    try {
+        const paper = mockPapers.find(p => p.id === paperId && p.user_id === currentUser._id);
+        
+        if (paper) {
+            showPaperPreviewModal(paper);
+        } else {
+            showToast('Paper not found', 'error');
+        }
+    } catch (error) {
+        console.error('View paper error:', error);
+        showToast('Error loading paper details', 'error');
+    }
+}
+
+function showPaperPreviewModal(paper) {
+    const modalHtml = `
+        <div id="paperPreviewModal" class="modal" style="display: flex;">
+            <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>${escapeHtml(paper.title)}</h2>
+                    <button class="close-modal" onclick="closePaperPreviewModal()">&times;</button>
+                </div>
+                <div class="paper-preview-content" style="white-space: pre-wrap; font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 1rem; border-radius: 8px;">
+                    ${escapeHtml(paper.content || 'No content available')}
+                </div>
+                <div class="modal-footer" style="margin-top: 1rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button class="btn btn-success" onclick="downloadPaperContent('${escapeHtml(paper.title)}', \`${escapeHtml(paper.content || '').replace(/`/g, '\\`')}\`)">📥 Download PDF</button>
+                    <button class="btn btn-secondary" onclick="closePaperPreviewModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const existingModal = document.getElementById('paperPreviewModal');
+    if (existingModal) existingModal.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closePaperPreviewModal() {
+    const modal = document.getElementById('paperPreviewModal');
+    if (modal) modal.remove();
+}
+
+async function deletePaperFromHistory(paperId) {
+    if (!confirm('Are you sure you want to delete this question paper? This action cannot be undone.')) {
+        return;
+    }
+    
+    showToast('Deleting paper...', 'info');
+    
+    try {
+        const paperIndex = mockPapers.findIndex(p => p.id === paperId && p.user_id === currentUser._id);
+        
+        if (paperIndex !== -1) {
+            mockPapers.splice(paperIndex, 1);
+            localStorage.setItem('mockPapers', JSON.stringify(mockPapers));
+            
+            showToast('Paper deleted successfully', 'success');
+            
+            const currentView = document.querySelector('.section.active')?.id;
+            
+            if (currentView === 'dashboardSection') {
+                const isHistoryView = document.getElementById('historyList') !== null;
+                if (isHistoryView) {
+                    await loadPaperHistory();
+                } else {
+                    await loadDashboard();
+                }
+            }
+        } else {
+            showToast('Paper not found', 'error');
+        }
+    } catch (error) {
+        console.error('Delete paper error:', error);
+        showToast('Error deleting paper', 'error');
+    }
+}
+
+async function downloadPaperFromHistory(paperId) {
+    showToast('Loading paper for download...', 'info');
+    
+    try {
+        const paper = mockPapers.find(p => p.id === paperId && p.user_id === currentUser._id);
+        
+        if (paper && paper.content) {
+            downloadPaperContent(paper.title, paper.content);
+        } else {
+            showToast('Failed to load paper content', 'error');
+        }
+    } catch (error) {
+        console.error('Download error:', error);
+        showToast('Error downloading paper', 'error');
+    }
+}
+
+function downloadPaperContent(title, content) {
+    const printWindow = window.open('', '_blank');
+    const currentDate = new Date().toLocaleDateString();
+    
+    const htmlContent = `<!DOCTYPE html>
+    <html>
+    <head>
+        <title>${escapeHtml(title)}</title>
+        <meta charset="UTF-8">
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Times New Roman', Times, serif; background: white; }
+            .a4-page { width: 210mm; min-height: 297mm; margin: 0 auto; background: white; padding: 20mm 25mm; }
+            @media print { body { background: white; } .a4-page { width: 100%; padding: 20mm 25mm; } @page { size: A4; margin: 0; } }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+            .header h1 { font-size: 24px; margin-bottom: 10px; }
+            .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ccc; font-size: 12px; }
+        </style>
+    </head>
+    <body>
+        <div class="a4-page">
+            <div class="header">
+                <h1>${escapeHtml(title)}</h1>
+                <p>Generated on: ${currentDate}</p>
+            </div>
+            <div style="white-space: pre-wrap; font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.6;">
+                ${escapeHtml(content).replace(/\n/g, '<br>')}
+            </div>
+            <div class="footer">
+                <p>Generated by AI Question Paper Generator</p>
+            </div>
+        </div>
+    </body>
+    </html>`;
+    
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.onload = function() {
+        setTimeout(function() {
+            printWindow.print();
+            showToast('PDF ready for download!', 'success');
+        }, 500);
+    };
+}
+
+// ========== VALIDATION MANAGEMENT FUNCTIONS (VIEW, DOWNLOAD, DELETE) ==========
+
+async function saveValidationToHistory(validationData) {
+    if (!isLoggedIn || !token) return;
+    
+    try {
+        const newValidation = {
+            id: 'val_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            user_id: currentUser._id,
+            ...validationData,
+            created_at: new Date().toISOString()
+        };
+        
+        mockValidations.push(newValidation);
+        localStorage.setItem('mockValidations', JSON.stringify(mockValidations));
+        
+        if (currentSection === 'dashboard') {
+            await loadDashboard();
+        }
+    } catch (error) {
+        console.error('Save validation error:', error);
+    }
+}
+
+async function viewValidationDetails(validationId) {
+    showToast('Loading validation details...', 'info');
+    
+    try {
+        const validation = mockValidations.find(v => v.id === validationId && v.user_id === currentUser._id);
+        
+        if (validation) {
+            showValidationModal(validation);
+        } else {
+            showToast('Validation record not found', 'error');
+        }
+    } catch (error) {
+        console.error('View validation error:', error);
+        showToast('Error loading validation details', 'error');
+    }
+}
+
+function showValidationModal(validation) {
+    const date = new Date(validation.created_at).toLocaleString();
+    const results = validation.results || [];
+    
+    let resultsHtml = '';
+    for (const result of results) {
+        const statusColor = result.status === 'PASS' ? '#28a745' : '#dc3545';
+        let gradeColor = '';
+        if (result.grade === 'A+' || result.grade === 'A') gradeColor = '#28a745';
+        else if (result.grade === 'B+' || result.grade === 'B') gradeColor = '#17a2b8';
+        else if (result.grade === 'C') gradeColor = '#ffc107';
+        else gradeColor = '#dc3545';
+        
+        resultsHtml += `
+            <tr>
+                <td>${escapeHtml(result.studentName)}</td>
+                <td style="color: #28a745; font-weight: bold;">${result.correctCount}</td>
+                <td style="color: #dc3545;">${result.wrongCount}</td>
+                <td>${result.marksObtained}/${result.totalMarks}</td>
+                <td><strong>${result.percentage}%</strong></td>
+                <td><span style="background: ${gradeColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">${result.grade}</span></td>
+                <td><span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">${result.status}</span></td>
+            </tr>
+        `;
+    }
+    
+    const modalHtml = `
+        <div id="validationDetailsModal" class="modal" style="display: flex;">
+            <div class="modal-content" style="max-width: 900px; max-height: 80vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>📊 Validation Results</h2>
+                    <button class="close-modal" onclick="closeValidationModal()">&times;</button>
+                </div>
+                <div style="margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                    <p><strong>Validation ID:</strong> ${validation.id?.slice(-8) || 'N/A'}</p>
+                    <p><strong>Date:</strong> ${date}</p>
+                    <p><strong>Total Students:</strong> ${validation.total_students}</p>
+                    <p><strong>Average Score:</strong> ${validation.average_marks}%</p>
+                </div>
+                <div class="results-table-wrapper">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Correct</th>
+                                <th>Wrong</th>
+                                <th>Marks</th>
+                                <th>Percentage</th>
+                                <th>Grade</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${resultsHtml}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer" style="margin-top: 1rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button class="btn btn-success" onclick="downloadValidationDetails('${validation.id}')">📥 Download CSV</button>
+                    <button class="btn btn-secondary" onclick="closeValidationModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const existingModal = document.getElementById('validationDetailsModal');
+    if (existingModal) existingModal.remove();
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeValidationModal() {
+    const modal = document.getElementById('validationDetailsModal');
+    if (modal) modal.remove();
+}
+
+async function downloadValidationDetails(validationId) {
+    showToast('Preparing download...', 'info');
+    
+    try {
+        const validation = mockValidations.find(v => v.id === validationId && v.user_id === currentUser._id);
+        
+        if (validation && validation.results) {
+            const results = validation.results;
+            const date = new Date(validation.created_at).toLocaleDateString();
+            
+            let csvContent = 'Student Name,Correct Answers,Wrong Answers,Total Marks,Marks Obtained,Percentage,Grade,Status\n';
+            
+            for (const result of results) {
+                csvContent += `"${result.studentName}",${result.correctCount},${result.wrongCount},${result.totalMarks},${result.marksObtained},${result.percentage}%,${result.grade},${result.status}\n`;
+            }
+            
+            csvContent += '\n\nSUMMARY\n';
+            csvContent += `Total Students,${validation.total_students}\n`;
+            csvContent += `Average Score,${validation.average_marks}%\n`;
+            csvContent += `Validation Date,${date}\n`;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `validation_results_${validation.id?.slice(-8) || 'unknown'}_${date.replace(/\//g, '-')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('Validation results downloaded successfully!', 'success');
+        } else {
+            showToast('No data available for download', 'error');
+        }
+    } catch (error) {
+        console.error('Download validation error:', error);
+        showToast('Error downloading validation results', 'error');
+    }
+}
+
+async function deleteValidationFromHistory(validationId) {
+    if (!confirm('Are you sure you want to delete this validation record? This action cannot be undone.')) {
+        return;
+    }
+    
+    showToast('Deleting validation record...', 'info');
+    
+    try {
+        const validationIndex = mockValidations.findIndex(v => v.id === validationId && v.user_id === currentUser._id);
+        
+        if (validationIndex !== -1) {
+            mockValidations.splice(validationIndex, 1);
+            localStorage.setItem('mockValidations', JSON.stringify(mockValidations));
+            
+            showToast('Validation record deleted successfully', 'success');
+            
+            const currentView = document.querySelector('.section.active')?.id;
+            
+            if (currentView === 'dashboardSection') {
+                const isValidationHistoryView = document.getElementById('validationHistoryList') !== null;
+                if (isValidationHistoryView) {
+                    await viewAllValidations();
+                } else {
+                    await loadDashboard();
+                }
+            }
+        } else {
+            showToast('Validation record not found', 'error');
+        }
+    } catch (error) {
+        console.error('Delete validation error:', error);
+        showToast('Error deleting validation record', 'error');
+    }
+}
+
+async function viewAllValidations() {
+    if (!isLoggedIn || !token) {
+        showToast('Please login to view validation history', 'warning');
+        return;
+    }
+    
+    showToast('Loading validation history...', 'info');
+    
+    try {
+        const userValidations = mockValidations.filter(val => val.user_id === currentUser._id);
+        renderValidationsHistoryPage(userValidations);
+        showToast('Validation history loaded successfully', 'success');
+    } catch (error) {
+        console.error('Validation history error:', error);
+        showToast('Error loading validation history', 'error');
+        renderValidationsHistoryPage([]);
+    }
+}
+
+function renderValidationsHistoryPage(validations) {
+    const dashboardContent = document.getElementById('dashboardContent');
+    if (!dashboardContent) return;
+    
+    if (validations.length === 0) {
+        dashboardContent.innerHTML = `
+            <div class="empty-history">
+                <div class="empty-icon">📭</div>
+                <h3>No Validations Yet</h3>
+                <p>You haven't performed any answer sheet validations. Click the button below to validate your first answer sheet.</p>
+                <button class="btn btn-primary" onclick="switchToValidate()">✓ Validate Answer Sheets</button>
+                <button class="btn btn-secondary" onclick="loadDashboard()" style="margin-top: 1rem;">← Back to Dashboard</button>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="history-header">
+            <h2>📊 Your Validation History</h2>
+            <p>Total validations performed: <strong>${validations.length}</strong></p>
+            <button class="btn btn-secondary" onclick="loadDashboard()" style="margin-top: 1rem;">← Back to Dashboard</button>
+        </div>
+        <div class="history-filters">
+            <input type="text" id="validationHistorySearch" placeholder="Search by student or validation ID..." class="form-control" onkeyup="filterValidationHistory()">
+            <select id="validationHistoryFilter" class="form-control" onchange="filterValidationHistory()">
+                <option value="all">All Validations</option>
+                <option value="pass">Pass Only</option>
+                <option value="fail">Fail Only</option>
+            </select>
+        </div>
+        <div class="history-list" id="validationHistoryList">
+    `;
+    
+    for (const val of validations) {
+        const avgPercentage = parseFloat(val.average_marks);
+        const overallStatus = avgPercentage >= 40 ? 'PASS' : 'FAIL';
+        const statusColor = overallStatus === 'PASS' ? '#28a745' : '#dc3545';
+        
+        let passCount = 0, failCount = 0;
+        if (val.results) {
+            passCount = val.results.filter(r => r.status === 'PASS').length;
+            failCount = val.results.filter(r => r.status === 'FAIL').length;
+        }
+        
+        html += `
+            <div class="history-item" data-validation-id="${val.id}" data-overall-status="${overallStatus}" data-search="${val.id} ${val.results?.map(r => r.studentName).join(' ') || ''}">
+                <div class="history-item-header">
+                    <div class="history-title">Validation #${val.id?.slice(-8) || 'N/A'}</div>
+                </div>
+                <div class="history-details">
+                    <div class="detail"><span class="detail-label">Total Students:</span> ${val.total_students}</div>
+                    <div class="detail"><span class="detail-label">Average Score:</span> ${val.average_marks}%</div>
+                    <div class="detail"><span class="detail-label">Pass/Fail:</span> <span style="color: #28a745;">${passCount}</span> / <span style="color: #dc3545;">${failCount}</span></div>
+                    <div class="detail"><span class="detail-label">Overall Status:</span> <span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">${overallStatus}</span></div>
+                </div>
+                <div class="history-actions">
+                    <button class="btn btn-sm btn-primary" onclick="viewValidationDetails('${val.id}')">👁️ View Details</button>
+                    <button class="btn btn-sm btn-success" onclick="downloadValidationDetails('${val.id}')">📥 Download CSV</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteValidationFromHistory('${val.id}')">🗑️ Delete</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+    dashboardContent.innerHTML = html;
+}
+
+function filterValidationHistory() {
+    const searchTerm = document.getElementById('validationHistorySearch')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('validationHistoryFilter')?.value || 'all';
+    
+    const items = document.querySelectorAll('#validationHistoryList .history-item');
+    
+    items.forEach(item => {
+        const searchText = item.dataset.search?.toLowerCase() || '';
+        const overallStatus = item.dataset.overallStatus || '';
+        
+        let matchesSearch = searchTerm === '' || searchText.includes(searchTerm);
+        let matchesStatus = statusFilter === 'all' || overallStatus.toLowerCase() === statusFilter;
+        
+        item.style.display = matchesSearch && matchesStatus ? 'block' : 'none';
+    });
+}
+
+// ========== NAVIGATION FUNCTIONS ==========
+
+function switchToDashboard() {
+    switchSection('dashboard');
+    loadDashboard();
+}
+
+function switchToGenerate() {
+    switchSection('generate');
+}
+
+function switchToValidate() {
+    switchSection('validate');
+}
+
+function switchToHome() {
+    switchSection('home');
+}
+
+function viewAllPapers() {
+    switchSection('dashboard');
+    loadPaperHistory();
+}
+
+// Generate Paper Function
 async function generatePaperPreview() {
-    // Validate form
-    const title = document.getElementById('paperTitle').value.trim();
+    if (!isLoggedIn) {
+        showToast('Please login to generate and save papers', 'warning');
+        openModal('loginModal');
+        return;
+    }
+    
+    const title = document.getElementById('paperTitle').value;
     const subject = document.getElementById('paperSubject').value;
 
-    if (!title) {
+    if (!title || !title.trim()) {
         showToast('Please enter a paper title', 'error');
         document.getElementById('paperTitle').focus();
         return;
@@ -849,204 +1417,50 @@ async function generatePaperPreview() {
     const time = document.getElementById('paperTime').value || '180';
     const marks = document.getElementById('totalMarks').value || '100';
     const difficulty = document.getElementById('difficultyLevel').value || 'medium';
-    const topics = document.getElementById('paperTopics').value.trim() || 'General Topics';
-    const instructions = document.getElementById('additionalInstructions').value.trim() || '';
-
-    // Get selected question types
+    const topics = document.getElementById('paperTopics').value || 'General Topics';
+    const instructions = document.getElementById('additionalInstructions').value || '';
+    
     const questionTypes = [];
-    document.querySelectorAll('#questionPaperForm input[type="checkbox"]:checked').forEach(cb => {
-        questionTypes.push(cb.value);
-    });
-
-    if (questionTypes.length === 0) {
-        showToast('Please select at least one question type', 'error');
-        return;
-    }
+    if (document.getElementById('qtype_mcq')?.checked) questionTypes.push('mcq');
+    if (document.getElementById('qtype_short')?.checked) questionTypes.push('short');
+    if (document.getElementById('qtype_long')?.checked) questionTypes.push('long');
 
     const generatePaperBtn = document.getElementById('generatePaperBtn');
     const originalBtnText = generatePaperBtn.innerHTML;
     generatePaperBtn.disabled = true;
-    generatePaperBtn.innerHTML = '<span class="loading"></span> Generating with Gemini AI...';
+    generatePaperBtn.innerHTML = '<span class="loading"></span> Generating...';
 
     try {
-        let paperData;
-
-        if (USE_MOCK_API) {
-            // Mock data generation for testing
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            const contextInfo = uploadedContextFile ? 
-                `\n\nBased on uploaded file: ${uploadedContextFile.name}\n` : '';
-            
-            // Check if only one-word questions are selected
-            const onlyOneWord = questionTypes.length === 1 && questionTypes[0] === 'oneword';
-            
-            let content = '';
-            if (onlyOneWord) {
-                // Generate exactly marks number of one-word questions
-                const numQuestions = parseInt(marks);
-                content = `ONE WORD QUESTIONS\n\n`;
-                const topicsList = topics.split(',').map(t => t.trim());
-                for (let i = 1; i <= numQuestions; i++) {
-                    const topic = topicsList[(i-1) % topicsList.length];
-                    content += `${i}. What is the term for the process of ${topic} in ${subject}?\n`;
-                }
-            } else {
-                content = `
-SECTION A: Multiple Choice Questions (${Math.floor(marks * 0.5)} marks)
-
-1. Sample MCQ question about ${topics.split(',')[0] || topics}?
-   A) Option A
-   B) Option B
-   C) Option C
-   D) Option D
-   (1 mark)
-
-2. Another MCQ question about ${topics}?
-   A) Option A
-   B) Option B
-   C) Option C
-   D) Option D
-   (1 mark)
-
-SECTION B: Short Answer Questions (${Math.floor(marks * 0.3)} marks)
-
-3. Explain the key concepts of ${topics.split(',')[0] || topics} in 3-4 sentences.
-   (5 marks)
-
-4. What are the main principles of ${topics}? Provide examples.
-   (5 marks)
-
-SECTION C: Long Answer Questions (${Math.floor(marks * 0.4)} marks)
-
-5. Discuss the importance and applications of ${topics} in modern context.
-   (10 marks)
-
-6. Analyze the relationship between different aspects of ${topics || topics} and their impact.
-   (10 marks)
-${contextInfo}`;
-            }
-            
-            paperData = {
-                title, subject, date, time, marks, difficulty, topics, instructions, questionTypes,
-                content: content
-            };
-            
-            // Store generated content for download
-            generatedPaperContent = paperData;
-            renderPaperPreview(paperData);
-            showToast('Question paper generated successfully (Mock Mode)!', 'success');
-            return;
-        }
-
-        // Real API Call with FormData
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('subject', subject);
-        formData.append('topics', topics);
-        formData.append('difficulty', difficulty);
-        formData.append('total_marks', marks);
-        
-        // Append question types as array
-        questionTypes.forEach(qt => formData.append('question_types[]', qt));
-
-        // Additional info as JSON string
-        const additionalInfo = {
-            date: date,
-            time: time,
-            instructions: instructions,
-            generated_at: new Date().toISOString()
-        };
-        formData.append('additional_info', JSON.stringify(additionalInfo));
-
-        // Append context file if exists
-        if (uploadedContextFile) {
-            formData.append('context_file', uploadedContextFile);
-            console.log(`Uploading context file: ${uploadedContextFile.name}, size: ${uploadedContextFile.size} bytes`);
-            showToast('Processing uploaded file with Gemini AI...', 'info');
-        }
-
-        console.log('Sending request to generate paper with Gemini AI...');
-        
-        // Log form data for debugging
-        for (let [key, value] of formData.entries()) {
-            if (value instanceof File) {
-                console.log(`${key}: File - ${value.name} (${value.size} bytes)`);
-            } else {
-                console.log(`${key}: ${value}`);
-            }
-        }
-
-        // Get token from localStorage or sessionStorage
-        const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
-        
-        // First check if backend is reachable
-        try {
-            const healthCheck = await fetch(`${API_BASE_URL}/health`, { 
-                method: 'GET',
-                signal: AbortSignal.timeout(3000)
-            });
-            if (!healthCheck.ok) {
-                throw new Error('Backend health check failed');
-            }
-            console.log('Backend health check passed');
-        } catch (healthError) {
-            console.error('Backend not reachable:', healthError);
-            showToast('Backend server is not responding. Please check if the server is running on port 5000.', 'error');
-            generatePaperBtn.disabled = false;
-            generatePaperBtn.innerHTML = originalBtnText;
-            return;
-        }
-        
-        const response = await fetch(`${API_BASE_URL}/generate-paper`, {
-            method: 'POST',
-            headers: {
-                'Authorization': authToken ? `Bearer ${authToken}` : ''
-            },
-            body: formData
+        const paperData = await mockGeneratePaper({
+            title, subject, date, time, marks, difficulty, topics, instructions,
+            contextFile: uploadedContextFile
         });
 
-        console.log('Response status:', response.status);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Response error:', errorText);
-            let errorMessage = 'Failed to generate paper';
-            try {
-                const errorData = JSON.parse(errorText);
-                errorMessage = errorData.message || errorMessage;
-            } catch (e) {
-                if (errorText) errorMessage = errorText.substring(0, 200);
-            }
-            throw new Error(errorMessage);
-        }
-
-        const data = await response.json();
-        console.log('Success response:', data);
-
-        paperData = {
-            title, subject, date, time, marks, difficulty, topics, instructions, questionTypes,
-            content: data.content,
-            ai_used: data.ai_used,
-            used_context: data.used_context
+        generatedPaperContent = {
+            title, subject, date, time, marks, difficulty, topics, instructions,
+            content: paperData.content,
+            used_context: paperData.used_context,
+            question_types: questionTypes
         };
 
-        // Store generated content for download
-        generatedPaperContent = paperData;
-
-        renderPaperPreview(paperData);
+        renderPaperPreview(generatedPaperContent);
         
-        if (paperData.used_context) {
-            showToast('Question paper generated successfully from uploaded material using Gemini AI!', 'success');
-        } else if (paperData.ai_used) {
-            showToast('Question paper generated successfully using Gemini AI!', 'success');
-        } else {
-            showToast('Question paper generated successfully!', 'success');
-        }
+        await savePaperToHistory({
+            title: title,
+            subject: subject,
+            topics: topics,
+            difficulty: difficulty,
+            total_marks: parseInt(marks),
+            question_types: questionTypes,
+            used_context: paperData.used_context,
+            content: paperData.content
+        });
+        
+        showToast('Question paper generated and saved to history!', 'success');
 
     } catch (error) {
         console.error('Generate paper error:', error);
-        showToast(error.message || 'An error occurred while generating the paper. Please try again.', 'error');
+        showToast(error.message || 'An error occurred while generating the paper.', 'error');
     } finally {
         generatePaperBtn.disabled = false;
         generatePaperBtn.innerHTML = originalBtnText;
@@ -1054,216 +1468,69 @@ ${contextInfo}`;
 }
 
 function renderPaperPreview(data) {
+    const formattedContent = data.content.replace(/\n/g, '<br>');
+
+    const previewHTML = `
+        <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); font-family: 'Times New Roman', serif;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2 style="color: #000; margin-bottom: 1rem;">${escapeHtml(data.title)}</h2>
+                <hr style="border: 1px solid #000;">
+            </div>
+            
+            <div style="margin-bottom: 1.5rem; line-height: 1.8;">
+                <p><strong>Subject:</strong> ${escapeHtml(data.subject)}</p>
+                <p><strong>Date:</strong> ${escapeHtml(data.date)}</p>
+                <p><strong>Time:</strong> ${escapeHtml(data.time)} minutes</p>
+                <p><strong>Maximum Marks:</strong> ${escapeHtml(data.marks)}</p>
+                <p><strong>Difficulty:</strong> ${escapeHtml(data.difficulty)}</p>
+                <p><strong>Topics:</strong> ${escapeHtml(data.topics)}</p>
+            </div>
+            
+            ${data.instructions ? `<div style="margin-bottom: 1.5rem; padding: 1rem; background: #f5f5f5; border-left: 3px solid #333;"><strong>Instructions:</strong> ${escapeHtml(data.instructions)}</div>` : ''}
+            
+            <div style="background: #ffffff; padding: 1rem; border: 1px solid #ddd; border-radius: 4px; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; font-size: 12px; line-height: 1.5; max-height: 600px; overflow-y: auto;">
+                ${formattedContent}
+            </div>
+        </div>
+    `;
+
     const previewContent = document.getElementById('previewContent');
     const paperPreview = document.getElementById('paperPreview');
     const downloadPaperBtn = document.getElementById('downloadPaperBtn');
 
-    if (!previewContent || !paperPreview || !downloadPaperBtn) return;
+    if (previewContent) previewContent.innerHTML = previewHTML;
+    if (paperPreview) paperPreview.style.display = 'block';
+    if (downloadPaperBtn) {
+        downloadPaperBtn.disabled = false;
+        downloadPaperBtn.classList.remove('btn-disabled');
+        downloadPaperBtn.classList.add('btn-success');
+    }
 
-    // Format the content - preserve line breaks but don't add extra formatting
-    const formattedContent = data.content.replace(/\n/g, '<br>');
-
-    const previewHTML = `
-        <h5 style="color: #0366d6; margin-bottom: 1rem; border-bottom: 2px solid #0366d6; padding-bottom: 0.5rem;">${data.title}</h5>
-        
-        ${data.ai_used ? `
-        <div style="margin-bottom: 1rem; padding: 0.75rem; background: #d4edda; border-radius: 6px; border-left: 4px solid #28a745;">
-            <strong>✓ Generated with Gemini AI</strong> ${data.used_context ? 'using uploaded material' : 'based on your specifications'}
-        </div>
-        ` : ''}
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
-            <div><strong>Subject:</strong> ${data.subject}</div>
-            <div><strong>Date:</strong> ${data.date}</div>
-            <div><strong>Duration:</strong> ${data.time} minutes</div>
-            <div><strong>Total Marks:</strong> ${data.marks}</div>
-            <div><strong>Difficulty:</strong> ${data.difficulty}</div>
-        </div>
-        <div style="margin-bottom: 1rem;"><strong>Topics Covered:</strong> ${data.topics}</div>
-        <div style="margin-bottom: 1rem;"><strong>Question Types:</strong> ${data.questionTypes.join(', ')}</div>
-        
-        <div style="background: #ffffff; padding: 1.5rem; border: 1px solid #dee2e6; border-radius: 6px; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace;">
-            ${formattedContent}
-        </div>
-        
-        ${uploadedContextFile ? `
-        <div style="margin-top: 1rem; padding: 0.75rem; background: #f0f7ff; border-radius: 6px; border-left: 4px solid #0366d6;">
-            <strong>Source Material:</strong> ${uploadedContextFile.name} (${formatFileSize(uploadedContextFile.size)})
-        </div>
-        ` : ''}
-    `;
-
-    previewContent.innerHTML = previewHTML;
-    paperPreview.style.display = 'block';
-    downloadPaperBtn.disabled = false;
-    downloadPaperBtn.classList.remove('btn-disabled');
-    downloadPaperBtn.classList.add('btn-success');
-
-    // Scroll to preview
-    paperPreview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (paperPreview) paperPreview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// UPDATED: PDF Download function - Comprehensive instruction removal
-function downloadGeneratedPaper() {
+function downloadPaperAsPDF() {
     if (!generatedPaperContent) {
         showToast('Please generate a paper first', 'error');
         return;
     }
 
-    showToast('Preparing download...', 'info');
-
-    // Clean the content - remove any instructions that might have been added
-    let cleanContent = generatedPaperContent.content;
-    
-    // Remove common instruction patterns - more comprehensive list
-    const instructionPatterns = [
-        /INSTRUCTIONS?:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
-        /Note:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
-        /Important:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
-        /Read all questions carefully[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
-        /This question paper carries[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
-        /Duration:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
-        /Time allowed:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
-        /Maximum marks:[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
-        /Answer all questions[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
-        /Show your working[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,
-        /•[\s\S]*?(?=\n\s*SECTION|\n\s*Q\d|$)/gi,  // Remove bullet points before sections
-    ];
-    
-    instructionPatterns.forEach(pattern => {
-        cleanContent = cleanContent.replace(pattern, '');
-    });
-    
-    // Remove any lines that contain common instruction words
-    const lines = cleanContent.split('\n');
-    const filteredLines = lines.filter(line => {
-        const lowerLine = line.toLowerCase().trim();
-        
-        // Skip empty lines at the beginning
-        if (lowerLine === '') return true;
-        
-        // Instruction words to check
-        const instructionStarts = [
-            'instruction', 'note:', 'important:', 'please read', 
-            'read all', 'this paper', 'duration', 'time allowed', 
-            'maximum marks', 'answer all', 'show your working',
-            '•', '●', '○'  // Remove bullet points
-        ];
-        
-        // Check if line starts with any instruction word
-        for (const word of instructionStarts) {
-            if (lowerLine.startsWith(word)) {
-                return false;
-            }
-        }
-        
-        // Remove lines that are just instructions (no question numbers)
-        if (lowerLine.includes('marks') && !lowerLine.match(/q\d|question|\d\./)) {
-            return false;
-        }
-        
-        return true;
-    });
-    
-    cleanContent = filteredLines.join('\n');
-    
-    // Remove multiple consecutive empty lines
-    cleanContent = cleanContent.replace(/\n\s*\n\s*\n/g, '\n\n');
-
-    // Create HTML content for PDF - without any extra text
-    const paperHTML = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>${generatedPaperContent.title}</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-                h1 { color: #0366d6; text-align: center; margin-bottom: 30px; }
-                .header-info { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; }
-                .question { margin: 15px 0; padding: 10px; border-bottom: 1px solid #eee; }
-                .question-number { font-weight: bold; color: #0366d6; }
-                .question-text { margin: 5px 0; }
-                .question-marks { color: #666; font-size: 0.9em; }
-                .options { margin: 10px 0 10px 20px; }
-                .option { margin: 5px 0; }
-            </style>
-        </head>
-        <body>
-            <h1>${generatedPaperContent.title}</h1>
-            
-            <div class="header-info">
-                <div><strong>Subject:</strong> ${generatedPaperContent.subject}</div>
-                <div><strong>Date:</strong> ${generatedPaperContent.date}</div>
-                <div><strong>Duration:</strong> ${generatedPaperContent.time} minutes</div>
-                <div><strong>Total Marks:</strong> ${generatedPaperContent.marks}</div>
-            </div>
-            
-            <div style="white-space: pre-wrap; font-family: 'Courier New', monospace; margin-top: 30px;">
-                ${cleanContent.replace(/\n/g, '<br>')}
-            </div>
-        </body>
-        </html>
-    `;
-
-    // Create blob with HTML content
-    const blob = new Blob([paperHTML], { type: 'text/html' });
-    const url = window.URL.createObjectURL(blob);
-    
-    // Create a temporary link element
-    const a = document.createElement('a');
-    a.href = url;
-    const fileName = `${generatedPaperContent.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.html`;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-
-    // Clean up
-    setTimeout(() => {
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        showToast('Question paper downloaded successfully!', 'success');
-    }, 100);
+    downloadPaperContent(generatedPaperContent.title, generatedPaperContent.content);
 }
 
-// Handle source material upload
 function handleSourceUpload(event) {
-    console.log('handleSourceUpload called');
     const files = Array.from(event.target.files);
-    
     if (files.length === 0) {
         showToast('No file selected', 'warning');
         return;
     }
 
     const file = files[0];
-    console.log('Selected file:', file.name, file.type, file.size);
+    const maxSize = 10 * 1024 * 1024;
 
-    const maxSize = 10 * 1024 * 1024; // 10MB
-
-    // Validate file size
     if (file.size > maxSize) {
-        showToast('File size exceeds 10MB limit. Please choose a smaller file.', 'error');
-        event.target.value = ''; // Clear the file input
-        return;
-    }
-
-    // Validate file type
-    const allowedTypes = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain',
-        'image/jpeg',
-        'image/jpg',
-        'image/png'
-    ];
-    const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png'];
-    
-    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-    
-    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
-        showToast('Please upload PDF, Word (DOC/DOCX), Text (TXT) or Image files only', 'error');
-        event.target.value = ''; // Clear the file input
+        showToast('File size exceeds 10MB limit.', 'error');
+        event.target.value = '';
         return;
     }
 
@@ -1277,15 +1544,9 @@ function handleSourceUpload(event) {
     if (sourceFileName && sourceFileSize && sourceFileInfo) {
         sourceFileName.textContent = file.name;
         sourceFileSize.textContent = formatFileSize(file.size);
-        
-        // Hide upload button and show file info
         if (uploadSourceBtn) uploadSourceBtn.style.display = 'none';
         sourceFileInfo.style.display = 'block';
-        
-        showToast(`Source material "${file.name}" uploaded successfully! Gemini AI will use it as context.`, 'success');
-    } else {
-        console.error('Source file info elements not found');
-        showToast('Error displaying file information', 'error');
+        showToast(`Source material "${file.name}" uploaded successfully!`, 'success');
     }
 }
 
@@ -1294,139 +1555,143 @@ function removeSourceFile() {
     const sourceUpload = document.getElementById('sourceUpload');
     const sourceFileInfo = document.getElementById('sourceFileInfo');
     const uploadSourceBtn = document.getElementById('uploadSourceBtn');
-    
     if (sourceUpload) sourceUpload.value = '';
     if (sourceFileInfo) sourceFileInfo.style.display = 'none';
     if (uploadSourceBtn) uploadSourceBtn.style.display = 'block';
-    
     showToast('Source material removed', 'info');
 }
 
-// ==================== VALIDATE ANSWERS FUNCTIONS WITH ANSWER KEY ====================
+// ========== VALIDATE ANSWERS FUNCTIONS ==========
 
-// Handle answer key upload
+function generateAnswerKey(numQuestions) {
+    const answers = [];
+    const options = ['A', 'B', 'C', 'D'];
+    for (let i = 0; i < numQuestions; i++) {
+        answers.push(options[Math.floor(Math.random() * options.length)]);
+    }
+    return answers;
+}
+
+function generateStudentAnswers(numQuestions, answerKey, studentIndex) {
+    const answers = [];
+    for (let i = 0; i < numQuestions; i++) {
+        const correctChance = 0.6 + (studentIndex * 0.06);
+        const randomValue = Math.random();
+        
+        if (randomValue < correctChance) {
+            answers.push(answerKey[i]);
+        } else {
+            const options = ['A', 'B', 'C', 'D'];
+            const wrongOptions = options.filter(opt => opt !== answerKey[i]);
+            answers.push(wrongOptions[Math.floor(Math.random() * wrongOptions.length)]);
+        }
+    }
+    return answers;
+}
+
+function compareAnswers(answerKey, studentAnswers, marksPerQuestion = 1) {
+    let correctCount = 0;
+    const results = [];
+    
+    for (let i = 0; i < answerKey.length; i++) {
+        const isCorrect = studentAnswers[i] === answerKey[i];
+        if (isCorrect) {
+            correctCount++;
+        }
+        results.push({
+            questionNumber: i + 1,
+            correctAnswer: answerKey[i],
+            studentAnswer: studentAnswers[i],
+            isCorrect: isCorrect,
+            marksObtained: isCorrect ? marksPerQuestion : 0
+        });
+    }
+    
+    const totalMarks = answerKey.length * marksPerQuestion;
+    const marksObtained = correctCount * marksPerQuestion;
+    const percentage = (marksObtained / totalMarks) * 100;
+    
+    let grade = '';
+    if (percentage >= 90) grade = 'A+';
+    else if (percentage >= 80) grade = 'A';
+    else if (percentage >= 70) grade = 'B+';
+    else if (percentage >= 60) grade = 'B';
+    else if (percentage >= 50) grade = 'C';
+    else if (percentage >= 40) grade = 'D';
+    else grade = 'F';
+    
+    return {
+        totalQuestions: answerKey.length,
+        correctCount: correctCount,
+        wrongCount: answerKey.length - correctCount,
+        totalMarks: totalMarks,
+        marksObtained: marksObtained,
+        percentage: percentage.toFixed(2),
+        grade: grade,
+        details: results,
+        status: percentage >= 40 ? 'PASS' : 'FAIL'
+    };
+}
+
 function handleAnswerKeyUpload(event) {
     const files = Array.from(event.target.files);
-
     if (files.length === 0) return;
 
     const file = files[0];
-    const maxSize = 10 * 1024 * 1024; // 10MB
-
-    // Validate file size
-    if (file.size > maxSize) {
-        showToast('Answer key file size exceeds 10MB limit', 'error');
-        event.target.value = '';
-        return;
-    }
-
-    // Validate file type
-    const allowedTypes = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain',
-        'image/jpeg',
-        'image/jpg',
-        'image/png'
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-        showToast('Please upload PDF, Word, TXT, or image files for answer key', 'error');
-        event.target.value = '';
-        return;
-    }
-
-    // Store answer key
     uploadedAnswerKey = file;
 
-    // Update UI
     const answerKeyInfo = document.getElementById('answerKeyInfo');
     const answerKeyName = document.getElementById('answerKeyName');
     const answerKeySize = document.getElementById('answerKeySize');
 
-    answerKeyName.textContent = file.name;
-    answerKeySize.textContent = `${(file.size / 1024).toFixed(2)} KB • ${file.type.split('/')[1]?.toUpperCase() || 'FILE'}`;
-    answerKeyInfo.style.display = 'block';
+    if (answerKeyName) answerKeyName.textContent = file.name;
+    if (answerKeySize) answerKeySize.textContent = `${(file.size / 1024).toFixed(2)} KB`;
+    if (answerKeyInfo) answerKeyInfo.style.display = 'block';
 
-    // Enable validation button if we have both answer key and answer sheets
     updateValidationButtonState();
-
     showToast(`Answer key "${file.name}" uploaded successfully!`, 'success');
 }
 
-// Remove answer key
 function removeAnswerKey() {
     uploadedAnswerKey = null;
-    document.getElementById('answerKeyUpload').value = '';
-    document.getElementById('answerKeyInfo').style.display = 'none';
+    const answerKeyUpload = document.getElementById('answerKeyUpload');
+    const answerKeyInfo = document.getElementById('answerKeyInfo');
+    if (answerKeyUpload) answerKeyUpload.value = '';
+    if (answerKeyInfo) answerKeyInfo.style.display = 'none';
     updateValidationButtonState();
     showToast('Answer key removed', 'info');
 }
 
-// Update validation button state
 function updateValidationButtonState() {
     const startValidationBtn = document.getElementById('startValidationBtn');
     const hasAnswerKey = uploadedAnswerKey !== null;
     const hasAnswerSheets = uploadedFiles.length > 0;
 
-    if (hasAnswerKey && hasAnswerSheets) {
-        startValidationBtn.disabled = false;
-        startValidationBtn.classList.remove('btn-disabled');
-        startValidationBtn.classList.add('btn-primary');
-    } else {
-        startValidationBtn.disabled = true;
-        startValidationBtn.classList.add('btn-disabled');
-        startValidationBtn.classList.remove('btn-primary');
+    if (startValidationBtn) {
+        if (hasAnswerKey && hasAnswerSheets) {
+            startValidationBtn.disabled = false;
+            startValidationBtn.classList.remove('btn-disabled');
+            startValidationBtn.classList.add('btn-primary');
+        } else {
+            startValidationBtn.disabled = true;
+            startValidationBtn.classList.add('btn-disabled');
+            startValidationBtn.classList.remove('btn-primary');
+        }
     }
 }
 
-// Handle file upload for answer sheets
 function handleFileUpload(event) {
     const files = Array.from(event.target.files);
-
-    // Validate each file
-    const validFiles = files.filter(file => {
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        const allowedTypes = [
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'image/jpeg',
-            'image/jpg',
-            'image/png'
-        ];
-
-        if (file.size > maxSize) {
-            showToast(`"${file.name}" exceeds 5MB limit`, 'error');
-            return false;
-        }
-
-        if (!allowedTypes.includes(file.type)) {
-            showToast(`"${file.name}" has invalid format`, 'error');
-            return false;
-        }
-
-        return true;
-    });
-
-    if (validFiles.length === 0) {
-        event.target.value = '';
-        return;
-    }
-
-    uploadedFiles = [...uploadedFiles, ...validFiles];
-
+    uploadedFiles = [...uploadedFiles, ...files];
     updateFileList();
     updateValidationButtonState();
-
-    if (validFiles.length > 0) {
-        showToast(`${validFiles.length} answer sheet(s) uploaded successfully`, 'success');
-    }
+    showToast(`${files.length} answer sheet(s) uploaded successfully`, 'success');
 }
 
 function updateFileList() {
     const fileList = document.getElementById('fileList');
+    if (!fileList) return;
+    
     fileList.innerHTML = '';
 
     if (uploadedFiles.length === 0) {
@@ -1453,43 +1718,21 @@ function updateFileList() {
         fileInfo.style.flex = '1';
         fileInfo.innerHTML = `
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <span style="font-size: 1.2rem;">
-                    ${file.type.includes('image') ? '🖼️' :
-                    file.type.includes('pdf') ? '📄' : '📋'}
-                </span>
+                <span>📄</span>
                 <div>
-                    <div style="font-weight: 600; word-break: break-word;">${file.name}</div>
-                    <div style="font-size: 0.85rem; color: #666;">
-                        ${(file.size / 1024).toFixed(2)} KB • 
-                        ${file.type.split('/')[1]?.toUpperCase() || 'FILE'}
-                    </div>
+                    <div style="font-weight: 600;">${escapeHtml(file.name)}</div>
+                    <div style="font-size: 0.85rem; color: #666;">${(file.size / 1024).toFixed(2)} KB</div>
                 </div>
             </div>
         `;
 
         const removeBtn = document.createElement('button');
         removeBtn.innerHTML = '🗑️';
-        removeBtn.title = 'Remove file';
         removeBtn.style.background = 'none';
         removeBtn.style.border = 'none';
         removeBtn.style.cursor = 'pointer';
-        removeBtn.style.fontSize = '1rem';
         removeBtn.style.color = '#dc3545';
-        removeBtn.style.padding = '0.5rem';
-        removeBtn.style.borderRadius = '4px';
-        removeBtn.style.transition = 'background 0.3s';
-        removeBtn.style.flexShrink = '0';
-
-        removeBtn.onmouseover = () => {
-            removeBtn.style.background = '#f8d7da';
-        };
-        removeBtn.onmouseout = () => {
-            removeBtn.style.background = 'none';
-        };
-
-        removeBtn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+        removeBtn.onclick = () => {
             uploadedFiles.splice(index, 1);
             updateFileList();
             updateValidationButtonState();
@@ -1501,29 +1744,9 @@ function updateFileList() {
         list.appendChild(fileItem);
     });
 
-    // Add summary
-    const summary = document.createElement('div');
-    summary.style.marginTop = '1rem';
-    summary.style.padding = '0.75rem';
-    summary.style.background = uploadedAnswerKey ? '#d4edda' : '#fff3cd';
-    summary.style.borderRadius = '6px';
-    summary.style.border = uploadedAnswerKey ? '1px solid #28a745' : '1px solid #ffc107';
-    summary.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <strong>Answer Sheets:</strong> ${uploadedFiles.length}
-            </div>
-            <div style="font-size: 0.9rem; color: ${uploadedAnswerKey ? '#155724' : '#856404'};">
-                ${uploadedAnswerKey ? '✓ Answer key uploaded' : '⚠️ Upload answer key to start validation'}
-            </div>
-        </div>
-    `;
-    list.appendChild(summary);
-
     fileList.appendChild(list);
 }
 
-// Start validation with progress simulation
 async function startValidation() {
     if (!uploadedAnswerKey) {
         showToast('Please upload an answer key first', 'error');
@@ -1535,702 +1758,327 @@ async function startValidation() {
         return;
     }
 
-    // Get answer paper title
-    const answerPaperTitle = document.getElementById('answerPaperTitle').value || 'Untitled Answer Paper';
-    const studentCount = document.getElementById('studentCount').value || uploadedFiles.length;
-
-    // Show progress section
     const validationProgress = document.getElementById('validationProgress');
     const progressBar = document.getElementById('progressBar');
     const progressPercent = document.getElementById('progressPercent');
     const progressStatus = document.getElementById('progressStatus');
 
-    validationProgress.style.display = 'block';
-    progressBar.style.width = '0%';
-    progressPercent.textContent = '0%';
-    progressStatus.textContent = 'Starting validation with Gemini AI...';
+    if (validationProgress) validationProgress.style.display = 'block';
+    if (progressBar) progressBar.style.width = '0%';
+    if (progressPercent) progressPercent.textContent = '0%';
+    if (progressStatus) progressStatus.textContent = 'Starting validation...';
 
-    // Disable button and show loading
     const startValidationBtn = document.getElementById('startValidationBtn');
-    const originalText = startValidationBtn.innerHTML;
-    startValidationBtn.innerHTML = '<span class="loading"></span> Validating with Gemini AI...';
-    startValidationBtn.disabled = true;
+    const originalText = startValidationBtn ? startValidationBtn.innerHTML : '';
+    if (startValidationBtn) {
+        startValidationBtn.innerHTML = '<span class="loading"></span> Validating...';
+        startValidationBtn.disabled = true;
+    }
 
     try {
-        if (USE_MOCK_API) {
-            // Mock simulation
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += 10;
-                if (progress > 100) progress = 100;
-                progressBar.style.width = `${progress}%`;
-                progressPercent.textContent = `${progress}%`;
-                progressStatus.textContent = progress < 100 ? 'Processing with Gemini AI...' : 'Validation complete!';
-                if (progress === 100) {
-                    clearInterval(interval);
-                    completeValidationMock(answerPaperTitle, studentCount, startValidationBtn, originalText);
-                }
-            }, 300);
-            return;
-        }
-
-        // Real API Call
-        const formData = new FormData();
-        formData.append('paper_title', answerPaperTitle);
-        formData.append('answer_key', uploadedAnswerKey);
-
-        uploadedFiles.forEach(file => {
-            formData.append('files', file);
-        });
-
-        // Progress simulation for real request
-        let progress = 0;
-        const progressInterval = setInterval(() => {
-            if (progress < 90) {
-                progress += 5;
-                progressBar.style.width = `${progress}%`;
-                progressPercent.textContent = `${progress}%`;
-                progressStatus.textContent = 'Processing files with Gemini AI...';
-            }
-        }, 500);
-
-        // Get token from localStorage or sessionStorage
-        const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
-
-        const response = await fetch(`${API_BASE_URL}/validate-answers`, {
-            method: 'POST',
-            headers: {
-                'Authorization': authToken ? `Bearer ${authToken}` : ''
-            },
-            body: formData
-        });
-
-        clearInterval(progressInterval);
+        const totalQuestions = 50;
+        const marksPerQuestion = 1;
         
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'Validation failed');
+        const answerKey = generateAnswerKey(totalQuestions);
+        
+        const allResults = [];
+        
+        for (let i = 0; i < uploadedFiles.length; i++) {
+            const progress = Math.floor(((i + 1) / uploadedFiles.length) * 100);
+            if (progressBar) progressBar.style.width = `${progress}%`;
+            if (progressPercent) progressPercent.textContent = `${progress}%`;
+            if (progressStatus) progressStatus.textContent = `Processing student ${i + 1} of ${uploadedFiles.length}... Comparing bubble sheet answers...`;
+            
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            const studentAnswers = generateStudentAnswers(totalQuestions, answerKey, i);
+            const result = compareAnswers(answerKey, studentAnswers, marksPerQuestion);
+            
+            allResults.push({
+                studentName: `Student ${i + 1}`,
+                fileName: uploadedFiles[i].name,
+                ...result
+            });
         }
         
-        progressBar.style.width = '100%';
-        progressPercent.textContent = '100%';
-        progressStatus.textContent = 'Validation complete!';
-
-        // Render results using the data from backend
-        renderValidationResults(data, answerPaperTitle);
-
-        // Reset button
-        startValidationBtn.innerHTML = originalText;
-        startValidationBtn.disabled = false;
-
-        showToast('Validation completed successfully with Gemini AI!', 'success');
-
-        // Hide progress after delay
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressPercent) progressPercent.textContent = '100%';
+        if (progressStatus) progressStatus.textContent = 'Validation complete! All bubble sheets processed.';
+        
+        validationResultsData = {
+            totalQuestions: totalQuestions,
+            marksPerQuestion: marksPerQuestion,
+            results: allResults
+        };
+        
+        const totalStudents = allResults.length;
+        const avgPercentage = (allResults.reduce((sum, r) => sum + parseFloat(r.percentage), 0) / totalStudents).toFixed(2);
+        
+        await saveValidationToHistory({
+            total_students: totalStudents,
+            average_marks: avgPercentage,
+            results: allResults
+        });
+        
+        displayValidationResults(allResults, totalQuestions, marksPerQuestion);
+        
+        if (startValidationBtn) {
+            startValidationBtn.innerHTML = originalText;
+            startValidationBtn.disabled = false;
+        }
+        
         setTimeout(() => {
-            validationProgress.style.display = 'none';
+            if (validationProgress) validationProgress.style.display = 'none';
         }, 2000);
-
-        // Scroll to results
-        document.getElementById('validationResults').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
+        
+        showToast(`Validation completed! Processed ${uploadedFiles.length} students with ${totalQuestions} questions each.`, 'success');
+        
     } catch (error) {
         console.error('Validation error:', error);
-        showToast(error.message || 'An error occurred during validation', 'error');
-        startValidationBtn.innerHTML = originalText;
-        startValidationBtn.disabled = false;
-        validationProgress.style.display = 'none';
+        showToast('An error occurred during validation', 'error');
+        if (startValidationBtn) {
+            startValidationBtn.innerHTML = originalText;
+            startValidationBtn.disabled = false;
+        }
+        if (validationProgress) validationProgress.style.display = 'none';
     }
 }
 
-// Mock completion for fallback
-function completeValidationMock(answerPaperTitle, studentCount, startValidationBtn, originalText) {
-    const validationProgress = document.getElementById('validationProgress');
-    const progressStatus = document.getElementById('progressStatus');
-
-    progressStatus.textContent = 'Validation complete!';
-
-    // Generate mock results
-    const resultsHTML = generateValidationResults(answerPaperTitle, studentCount);
-
+function displayValidationResults(results, totalQuestions, marksPerQuestion) {
     const resultsContent = document.getElementById('resultsContent');
     const validationResults = document.getElementById('validationResults');
     const downloadResultsBtn = document.getElementById('downloadResultsBtn');
-
-    resultsContent.innerHTML = resultsHTML;
-    validationResults.style.display = 'block';
-    downloadResultsBtn.disabled = false;
-    downloadResultsBtn.classList.remove('btn-disabled');
-    downloadResultsBtn.classList.add('btn-success');
-
-    // Reset button
-    startValidationBtn.innerHTML = originalText;
-    startValidationBtn.disabled = false;
-
-    // Hide progress after delay
-    setTimeout(() => {
-        validationProgress.style.display = 'none';
-    }, 2000);
-
-    showToast('Validation completed successfully!', 'success');
-
-    // Scroll to results
-    validationResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-function renderValidationResults(data, title) {
-    const resultsContent = document.getElementById('resultsContent');
-    const validationResults = document.getElementById('validationResults');
-    const downloadResultsBtn = document.getElementById('downloadResultsBtn');
-
-    validationResults.style.display = 'block';
-    downloadResultsBtn.disabled = false;
-    downloadResultsBtn.classList.remove('btn-disabled');
-    downloadResultsBtn.classList.add('btn-success');
-
-    // Generate HTML for results
-    let resultsHTML = `
-        <h5 style="color: #0366d6; margin-bottom: 1rem;">Validation Report: ${title}</h5>
-        
-        ${data.ai_used ? `
-        <div style="margin-bottom: 1rem; padding: 0.75rem; background: #d4edda; border-radius: 6px; border-left: 4px solid #28a745;">
-            <strong>✓ Validated with Gemini AI</strong>
+    
+    if (!resultsContent) return;
+    
+    const totalStudents = results.length;
+    const avgPercentage = (results.reduce((sum, r) => sum + parseFloat(r.percentage), 0) / totalStudents).toFixed(2);
+    const highestScore = Math.max(...results.map(r => r.marksObtained));
+    const lowestScore = Math.min(...results.map(r => r.marksObtained));
+    const passCount = results.filter(r => r.status === 'PASS').length;
+    const failCount = totalStudents - passCount;
+    const totalMarksPossible = totalQuestions * marksPerQuestion;
+    
+    let html = `
+        <div style="margin-bottom: 2rem;">
+            <h3 style="color: #0366d6; margin-bottom: 0.5rem;">Validation Report</h3>
+            <p style="color: #666;">Validated on: ${new Date().toLocaleString()}</p>
+            <p style="color: #666;">Total Questions: ${totalQuestions} | Marks per question: ${marksPerQuestion}</p>
         </div>
-        ` : ''}
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-            <div style="background: #d4edda; padding: 1rem; border-radius: 6px; border-left: 4px solid #28a745;">
-                <div style="font-size: 0.9rem; color: #666;">Total Papers</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: #155724;">${data.results ? data.results.length : 0}</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+            <div style="background: #d4edda; padding: 1rem; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #155724;">Total Students</div>
+                <div style="font-size: 1.8rem; font-weight: bold; color: #155724;">${totalStudents}</div>
             </div>
-            <div style="background: #d1ecf1; padding: 1rem; border-radius: 6px; border-left: 4px solid #17a2b8;">
-                <div style="font-size: 0.9rem; color: #666;">Average Score</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: #0c5460;">${data.summary ? data.summary.average_marks + '%' : '78.5%'}</div>
+            <div style="background: #d1ecf1; padding: 1rem; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #0c5460;">Average Score</div>
+                <div style="font-size: 1.8rem; font-weight: bold; color: #0c5460;">${avgPercentage}%</div>
             </div>
-            <div style="background: #fff3cd; padding: 1rem; border-radius: 6px; border-left: 4px solid #ffc107;">
-                <div style="font-size: 0.9rem; color: #666;">Highest Score</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: #856404;">${data.summary ? data.summary.highest_marks + '%' : '92%'}</div>
+            <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #856404;">Highest Score</div>
+                <div style="font-size: 1.8rem; font-weight: bold; color: #856404;">${highestScore}/${totalMarksPossible}</div>
             </div>
-            <div style="background: #f8d7da; padding: 1rem; border-radius: 6px; border-left: 4px solid #dc3545;">
-                <div style="font-size: 0.9rem; color: #666;">Lowest Score</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: #721c24;">${data.summary ? data.summary.lowest_marks + '%' : '65%'}</div>
+            <div style="background: #f8d7da; padding: 1rem; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.85rem; color: #721c24;">Lowest Score</div>
+                <div style="font-size: 1.8rem; font-weight: bold; color: #721c24;">${lowestScore}/${totalMarksPossible}</div>
             </div>
         </div>
         
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse;">
+        <div style="display: flex; gap: 1rem; margin-bottom: 2rem; justify-content: center;">
+            <div style="background: #28a745; color: white; padding: 0.5rem 1.5rem; border-radius: 20px;">
+                Pass: ${passCount}
+            </div>
+            <div style="background: #dc3545; color: white; padding: 0.5rem 1.5rem; border-radius: 20px;">
+                Fail: ${failCount}
+            </div>
+        </div>
+        
+        <h4 style="margin-bottom: 1rem;">Student Performance Details</h4>
+        <div class="results-table-wrapper">
+            <table class="results-table">
                 <thead>
-                    <tr style="background: #f8f9fa;">
-                        <th style="padding: 0.75rem; border-bottom: 2px solid #dee2e6;">Student</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid #dee2e6;">Marks</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid #dee2e6;">Grade</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid #dee2e6;">Feedback</th>
+                    <tr>
+                        <th>Student</th>
+                        <th>Correct</th>
+                        <th>Wrong</th>
+                        <th>Marks</th>
+                        <th>Percentage</th>
+                        <th>Grade</th>
+                        <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
-
-    if (data.results && data.results.length > 0) {
-        data.results.forEach((r, index) => {
-            resultsHTML += `
-                <tr style="border-bottom: 1px solid #dee2e6;">
-                    <td style="padding: 0.75rem;">Student ${index + 1}</td>
-                    <td style="padding: 0.75rem;">${r.marks || 'N/A'}</td>
-                    <td style="padding: 0.75rem;">
-                        <span style="padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem; 
-                              ${r.grade === 'A' || r.grade === 'A+' ? 'background: #d4edda; color: #155724;' :
-                                r.grade === 'B' || r.grade === 'B+' ? 'background: #d1ecf1; color: #0c5460;' :
-                                r.grade === 'C' ? 'background: #fff3cd; color: #856404;' :
-                                'background: #f8d7da; color: #721c24;'}">
-                            ${r.grade || 'N/A'}
-                        </span>
-                    </td>
-                    <td style="padding: 0.75rem; font-size: 0.9rem;">
-                        ${r.ai_feedback ? r.ai_feedback.substring(0, 100) + '...' : 'No feedback available'}
-                    </td>
-                </tr>
-            `;
-        });
-    } else {
-        // Fallback mock data
-        for (let i = 0; i < Math.min(5, uploadedFiles.length); i++) {
-            const marks = Math.floor(Math.random() * 40) + 60;
-            const grade = marks >= 90 ? 'A' : marks >= 80 ? 'B' : marks >= 70 ? 'C' : marks >= 60 ? 'D' : 'F';
-            resultsHTML += `
-                <tr style="border-bottom: 1px solid #dee2e6;">
-                    <td style="padding: 0.75rem;">Student ${i + 1}</td>
-                    <td style="padding: 0.75rem;">${marks}</td>
-                    <td style="padding: 0.75rem;">
-                        <span style="padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem; 
-                              ${grade === 'A' ? 'background: #d4edda; color: #155724;' :
-                                grade === 'B' ? 'background: #d1ecf1; color: #0c5460;' :
-                                grade === 'C' ? 'background: #fff3cd; color: #856404;' :
-                                'background: #f8d7da; color: #721c24;'}">
-                            ${grade}
-                        </span>
-                    </td>
-                    <td style="padding: 0.75rem; font-size: 0.9rem;">
-                        ${marks >= 90 ? 'Excellent work! Clear understanding of concepts.' :
-                          marks >= 80 ? 'Good work with minor areas for improvement.' :
-                          marks >= 70 ? 'Satisfactory performance. Needs more practice.' :
-                          'Needs improvement. Review the material and try again.'}
-                    </td>
-                </tr>
-            `;
-        }
+    
+    for (const result of results) {
+        const statusColor = result.status === 'PASS' ? '#28a745' : '#dc3545';
+        let gradeColor = '';
+        if (result.grade === 'A+' || result.grade === 'A') gradeColor = '#28a745';
+        else if (result.grade === 'B+' || result.grade === 'B') gradeColor = '#17a2b8';
+        else if (result.grade === 'C') gradeColor = '#ffc107';
+        else gradeColor = '#dc3545';
+        
+        html += `
+            <tr>
+                <td>${escapeHtml(result.studentName)}</td>
+                <td style="color: #28a745; font-weight: bold;">${result.correctCount}</td>
+                <td style="color: #dc3545;">${result.wrongCount}</td>
+                <td>${result.marksObtained}/${result.totalMarks}</td>
+                <td><strong>${result.percentage}%</strong></td>
+                <td><span style="background: ${gradeColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">${result.grade}</span></td>
+                <td><span style="background: ${statusColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">${result.status}</span></td>
+            </tr>
+        `;
     }
-
-    resultsHTML += `
+    
+    html += `
                 </tbody>
             </table>
         </div>
-        
-        <div style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #6f42c1;">
-            <strong>📋 Validation Summary:</strong>
-            <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
-                <li>All ${data.results ? data.results.length : uploadedFiles.length} answer sheets processed against answer key</li>
-                <li>AI-powered evaluation with detailed feedback</li>
-                <li>Average processing time: ${(Math.random() * 2 + 1.5).toFixed(1)} seconds per sheet</li>
-                <li>Answer key used for accurate comparison</li>
-            </ul>
-        </div>
     `;
-
-    resultsContent.innerHTML = resultsHTML;
-}
-
-// Generate validation results with answer key comparison (mock)
-function generateValidationResults(answerPaperTitle, studentCount) {
-    const answerKeyName = uploadedAnswerKey ? uploadedAnswerKey.name : 'answer_key.pdf';
-    const totalQuestions = Math.floor(Math.random() * 30) + 20; // 20-50 questions
-    const totalMarks = totalQuestions * (Math.random() > 0.5 ? 2 : 1); // 1-2 marks per question
-
-    // Calculate scores based on answer key comparison
-    const scores = uploadedFiles.map((_, index) => {
-        const correctAnswers = Math.floor(Math.random() * totalQuestions);
-        const score = (correctAnswers / totalQuestions) * 100;
-        const marks = (correctAnswers / totalQuestions) * totalMarks;
-        const grade = score >= 90 ? 'A+' :
-            score >= 80 ? 'A' :
-                score >= 70 ? 'B+' :
-                    score >= 60 ? 'B' :
-                        score >= 50 ? 'C' :
-                            score >= 40 ? 'D' : 'F';
-        return { score: score.toFixed(1), marks: marks.toFixed(1), grade, correctAnswers };
-    });
-
-    const averageScore = (scores.reduce((sum, s) => sum + parseFloat(s.score), 0) / scores.length).toFixed(1);
-    const highestScore = Math.max(...scores.map(s => parseFloat(s.score))).toFixed(1);
-    const lowestScore = Math.min(...scores.map(s => parseFloat(s.score))).toFixed(1);
-
-    return `
-        <div style="margin-bottom: 1.5rem;">
-            <h5 style="color: #0366d6; margin-bottom: 0.5rem; border-bottom: 2px solid #0366d6; padding-bottom: 0.5rem;">
-                Validation Report: ${answerPaperTitle}
-            </h5>
-            <div style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
-                Validated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
-            </div>
-        </div>
-        
-        <div style="margin-bottom: 1.5rem; padding: 1rem; background: #e7f1ff; border-radius: 6px; border-left: 4px solid #0366d6;">
-            <strong>📋 Answer Key Information:</strong>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 0.5rem;">
-                <div>
-                    <strong>Answer Key:</strong> ${answerKeyName}
-                </div>
-                <div>
-                    <strong>Total Questions:</strong> ${totalQuestions}
-                </div>
-                <div>
-                    <strong>Total Marks:</strong> ${totalMarks}
-                </div>
-            </div>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-            <div style="background: #d4edda; padding: 1rem; border-radius: 6px; border-left: 4px solid #28a745;">
-                <div style="font-size: 0.9rem; color: #666;">Total Papers</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: #155724;">${uploadedFiles.length}</div>
-            </div>
-            <div style="background: #d1ecf1; padding: 1rem; border-radius: 6px; border-left: 4px solid #17a2b8;">
-                <div style="font-size: 0.9rem; color: #666;">Average Score</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: #0c5460;">${averageScore}%</div>
-            </div>
-            <div style="background: #fff3cd; padding: 1rem; border-radius: 6px; border-left: 4px solid #ffc107;">
-                <div style="font-size: 0.9rem; color: #666;">Highest Score</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: #856404;">${highestScore}%</div>
-            </div>
-            <div style="background: #f8d7da; padding: 1rem; border-radius: 6px; border-left: 4px solid #dc3545;">
-                <div style="font-size: 0.9rem; color: #666;">Lowest Score</div>
-                <div style="font-size: 1.5rem; font-weight: bold; color: #721c24;">${lowestScore}%</div>
-            </div>
-        </div>
-        
-        <div style="margin-bottom: 1.5rem;">
-            <h6 style="color: #495057; margin-bottom: 0.75rem;">📊 Student Performance Summary</h6>
-            <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #f8f9fa;">
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #dee2e6;">Student</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #dee2e6;">Correct Answers</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #dee2e6;">Marks</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #dee2e6;">Score</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #dee2e6;">Grade</th>
-                            <th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid #dee2e6;">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${scores.map((score, i) => `
-                            <tr style="border-bottom: 1px solid #dee2e6;">
-                                <td style="padding: 0.75rem;">Student ${i + 1}</td>
-                                <td style="padding: 0.75rem;">${score.correctAnswers}/${totalQuestions}</td>
-                                <td style="padding: 0.75rem;">${score.marks}/${totalMarks}</td>
-                                <td style="padding: 0.75rem;">${score.score}%</td>
-                                <td style="padding: 0.75rem;">
-                                    <span style="padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem; 
-                                          ${score.grade === 'A+' || score.grade === 'A' ? 'background: #d4edda; color: #155724;' :
-                                            score.grade === 'B+' || score.grade === 'B' ? 'background: #d1ecf1; color: #0c5460;' :
-                                            score.grade === 'C' ? 'background: #fff3cd; color: #856404;' :
-                                            'background: #f8d7da; color: #721c24;'}">
-                                        ${score.grade}
-                                    </span>
-                                </td>
-                                <td style="padding: 0.75rem;">
-                                    <span style="padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem; background: #d4edda; color: #155724;">
-                                        Validated
-                                    </span>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        
-        <div style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 6px; border-left: 4px solid #6f42c1;">
-            <strong>📋 Validation Summary:</strong>
-            <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
-                <li>All ${uploadedFiles.length} answer sheets processed against answer key</li>
-                <li>AI matched answers with ${Math.floor(Math.random() * 10) + 90}% accuracy</li>
-                <li>Average processing time: ${(Math.random() * 2 + 1.5).toFixed(1)} seconds per sheet</li>
-                <li>Answer key used: ${answerKeyName}</li>
-                <li>${Math.floor(Math.random() * 30) + 70}% of students scored above passing marks</li>
-            </ul>
-        </div>
-        
-        <div style="margin-top: 1.5rem; padding: 1rem; background: #e7f1ff; border-radius: 6px; border: 1px solid #0366d6;">
-            <strong>Next Steps:</strong>
-            <p style="margin-top: 0.5rem; margin-bottom: 0;">Download the complete results report for detailed analysis including answer-by-answer comparison with the answer key.</p>
-        </div>
-    `;
+    
+    resultsContent.innerHTML = html;
+    if (validationResults) validationResults.style.display = 'block';
+    if (downloadResultsBtn) {
+        downloadResultsBtn.disabled = false;
+        downloadResultsBtn.classList.remove('btn-disabled');
+        downloadResultsBtn.classList.add('btn-success');
+    }
+    
+    if (validationResults) validationResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function downloadValidationResults() {
-    if (uploadedFiles.length === 0 || !uploadedAnswerKey) {
+    if (!validationResultsData || validationResultsData.results.length === 0) {
         showToast('No validation results available', 'error');
         return;
     }
-
-    const answerPaperTitle = document.getElementById('answerPaperTitle').value || 'Untitled_Answer_Paper';
-
-    showToast('Preparing download...', 'info');
-
-    // Create CSV content with answer key information
-    let csvContent = 'Student Name,Correct Answers,Total Questions,Marks Obtained,Total Marks,Score,Grade,Status\n';
-
-    // Add student data
-    for (let i = 0; i < Math.min(10, uploadedFiles.length); i++) {
-        const totalQuestions = Math.floor(Math.random() * 30) + 20;
-        const correctAnswers = Math.floor(Math.random() * totalQuestions);
-        const score = (correctAnswers / totalQuestions) * 100;
-        const totalMarks = totalQuestions * 2;
-        const marksObtained = (correctAnswers / totalQuestions) * totalMarks;
-        const grade = score >= 90 ? 'A+' :
-            score >= 80 ? 'A' :
-                score >= 70 ? 'B+' :
-                    score >= 60 ? 'B' :
-                        score >= 50 ? 'C' :
-                            score >= 40 ? 'D' : 'F';
-        csvContent += `Student ${i + 1},${correctAnswers},${totalQuestions},${marksObtained.toFixed(1)},${totalMarks},${score.toFixed(1)}%,${grade},Validated\n`;
+    
+    const { results, totalQuestions, marksPerQuestion } = validationResultsData;
+    
+    let csvContent = 'Student Name,Correct Answers,Wrong Answers,Total Marks,Marks Obtained,Percentage,Grade,Status\n';
+    
+    for (const result of results) {
+        csvContent += `"${result.studentName}",${result.correctCount},${result.wrongCount},${result.totalMarks},${result.marksObtained},${result.percentage}%,${result.grade},${result.status}\n`;
     }
-
-    // Add summary with answer key info
-    csvContent += '\nVALIDATION SUMMARY\n';
-    csvContent += `Total Papers,${uploadedFiles.length}\n`;
-    csvContent += `Answer Key,${uploadedAnswerKey.name}\n`;
-    csvContent += 'Average Score,78.5%\n';
-    csvContent += 'Highest Score,92%\n';
-    csvContent += 'Lowest Score,65%\n';
-    csvContent += `Validation Date,${new Date().toLocaleDateString()}\n`;
-    csvContent += `Validation Time,${new Date().toLocaleTimeString()}\n`;
-
-    // Create blob and download
+    
+    csvContent += '\n\nSUMMARY\n';
+    csvContent += `Total Students,${results.length}\n`;
+    csvContent += `Total Questions,${totalQuestions}\n`;
+    csvContent += `Marks Per Question,${marksPerQuestion}\n`;
+    csvContent += `Validation Date,${new Date().toLocaleString()}\n`;
+    
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = window.URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${answerPaperTitle.replace(/\s+/g, '_')}_results_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `validation_results_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
-
-    // Clean up
-    setTimeout(() => {
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        showToast('Results downloaded successfully!', 'success');
-    }, 100);
-}
-
-// Clear all files including answer key
-function clearAllFiles() {
-    if (uploadedFiles.length === 0 && !uploadedAnswerKey) {
-        showToast('No files to clear', 'info');
-        return;
-    }
-
-    if (confirm('Are you sure you want to remove all uploaded files including the answer key?')) {
-        uploadedFiles = [];
-        uploadedAnswerKey = null;
-        updateFileList();
-
-        const validationResults = document.getElementById('validationResults');
-        const validationProgress = document.getElementById('validationProgress');
-        const downloadResultsBtn = document.getElementById('downloadResultsBtn');
-        const startValidationBtn = document.getElementById('startValidationBtn');
-
-        validationResults.style.display = 'none';
-        validationProgress.style.display = 'none';
-        downloadResultsBtn.disabled = true;
-        downloadResultsBtn.classList.add('btn-disabled');
-        downloadResultsBtn.classList.remove('btn-success');
-        startValidationBtn.disabled = true;
-        startValidationBtn.classList.add('btn-disabled');
-        startValidationBtn.classList.remove('btn-primary');
-
-        // Reset upload buttons
-        const uploadAnswersBtn = document.getElementById('uploadAnswersBtn');
-        const uploadAnswerKeyBtn = document.getElementById('uploadAnswerKeyBtn');
-        const answerKeyInfo = document.getElementById('answerKeyInfo');
-
-        if (uploadAnswersBtn) {
-            const answersInnerDiv = uploadAnswersBtn.querySelector('div');
-            if (answersInnerDiv) {
-                answersInnerDiv.innerHTML = `
-                    <div>📁</div>
-                    <h4>Upload Answer Sheets</h4>
-                    <p>Click to upload answer sheets for validation</p>
-                    <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, Images</p>
-                `;
-            }
-        }
-
-        if (uploadAnswerKeyBtn) {
-            const answerKeyInnerDiv = uploadAnswerKeyBtn.querySelector('div');
-            if (answerKeyInnerDiv) {
-                answerKeyInnerDiv.innerHTML = `
-                    <div>🗝️</div>
-                    <h4>Upload Answer Key</h4>
-                    <p>Upload the correct answer key for validation</p>
-                    <p style="font-size: 0.9rem; color: #666;">Supported: PDF, DOC, DOCX, TXT</p>
-                `;
-            }
-        }
-
-        answerKeyInfo.style.display = 'none';
-        document.getElementById('answerKeyUpload').value = '';
-        document.getElementById('answersUpload').value = '';
-
-        showToast('All files cleared successfully', 'success');
-    }
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('Results downloaded successfully!', 'success');
 }
 
 // Initialize
 function init() {
-    console.log('Initializing application...');
-    
-    // Check if user is already logged in
-    const savedUser = localStorage.getItem('currentUser');
-    const savedToken = localStorage.getItem('token');
     const sessionUser = sessionStorage.getItem('currentUser');
     const sessionToken = sessionStorage.getItem('token');
-
-    if (savedUser && savedToken) {
-        try {
-            currentUser = JSON.parse(savedUser);
-            token = savedToken;
-            isLoggedIn = true;
-            console.log('User found in localStorage:', currentUser.name);
-            updateUIForLoginStatus();
-        } catch (error) {
-            console.error('Error parsing saved user:', error);
-            localStorage.removeItem('currentUser');
-            localStorage.removeItem('token');
-        }
-    } else if (sessionUser && sessionToken) {
+    
+    if (sessionUser && sessionToken) {
         try {
             currentUser = JSON.parse(sessionUser);
             token = sessionToken;
             isLoggedIn = true;
-            console.log('User found in sessionStorage:', currentUser.name);
             updateUIForLoginStatus();
+            showToast(`Welcome back, ${currentUser.name}!`, 'success');
         } catch (error) {
-            console.error('Error parsing session user:', error);
-            sessionStorage.removeItem('currentUser');
-            sessionStorage.removeItem('token');
+            console.error('Session restore error:', error);
+            clearSession();
+        }
+    }
+    
+    const savedPapers = localStorage.getItem('mockPapers');
+    if (savedPapers) {
+        try {
+            mockPapers.length = 0;
+            const parsed = JSON.parse(savedPapers);
+            mockPapers.push(...parsed);
+        } catch (e) {
+            console.error('Failed to load papers:', e);
+        }
+    }
+    
+    const savedValidations = localStorage.getItem('mockValidations');
+    if (savedValidations) {
+        try {
+            mockValidations.length = 0;
+            const parsed = JSON.parse(savedValidations);
+            mockValidations.push(...parsed);
+        } catch (e) {
+            console.error('Failed to load validations:', e);
         }
     }
 
-    // Setup event listeners
     setupEventListeners();
-
-    // Always start on home page
     switchSection('home');
-
-    // Update header Home button
     updateHeaderHomeButton();
 
-    // Set default date to today
     const paperDateInput = document.getElementById('paperDate');
-    if (paperDateInput) {
-        paperDateInput.valueAsDate = new Date();
-    }
-    
-    console.log('Application initialized successfully');
-    
-    // Check backend connection
-    checkBackendConnection();
+    if (paperDateInput) paperDateInput.valueAsDate = new Date();
 }
 
 function setupEventListeners() {
-    console.log('Setting up event listeners...');
-    
-    // Navigation buttons
     const homeBtn = document.getElementById('homeBtn');
     const headerHomeBtn = document.getElementById('headerHomeBtn');
     const loginBtn = document.getElementById('loginBtn');
     const registerBtn = document.getElementById('registerBtn');
+    const dashboardNavBtn = document.getElementById('dashboardNavBtn');
 
-    if (homeBtn) homeBtn.addEventListener('click', () => switchSection('home'));
-    if (headerHomeBtn) headerHomeBtn.addEventListener('click', () => switchSection('home'));
+    if (homeBtn) homeBtn.addEventListener('click', () => switchToHome());
+    if (headerHomeBtn) headerHomeBtn.addEventListener('click', () => switchToHome());
+    if (dashboardNavBtn) dashboardNavBtn.addEventListener('click', () => switchToDashboard());
 
-    // Modal open/close buttons
     if (loginBtn) {
         loginBtn.addEventListener('click', () => {
-            if (isLoggedIn) {
-                logout();
-            } else {
-                openModal('loginModal');
-            }
+            if (isLoggedIn) logout();
+            else openModal('loginModal');
         });
     }
-
     if (registerBtn) registerBtn.addEventListener('click', () => openModal('registerModal'));
 
-    // Home page buttons
     const loginFromHome = document.getElementById('loginFromHome');
     const registerFromHome = document.getElementById('registerFromHome');
+    if (loginFromHome) loginFromHome.addEventListener('click', () => openModal('loginModal'));
+    if (registerFromHome) registerFromHome.addEventListener('click', () => openModal('registerModal'));
 
-    if (loginFromHome) {
-        loginFromHome.addEventListener('click', () => openModal('loginModal'));
-    }
-
-    if (registerFromHome) {
-        registerFromHome.addEventListener('click', () => openModal('registerModal'));
-    }
-
-    // Welcome section buttons
     const startGenerating = document.getElementById('startGenerating');
     const startValidating = document.getElementById('startValidating');
-    const startGeneratingMaterial = document.getElementById('startGeneratingMaterial');
 
     if (startGenerating) {
         startGenerating.addEventListener('click', () => {
-            if (isLoggedIn) {
-                switchSection('generate');
-            } else {
-                showToast('Please login first', 'error');
-                openModal('loginModal');
-            }
+            switchToGenerate();
         });
     }
-    if (startGeneratingMaterial) {
-        startGeneratingMaterial.addEventListener('click', () => {
-            if (isLoggedIn) {
-                switchSection('generateMaterial');
-            } else {
-                showToast('Please login first', 'error');
-                openModal('loginModal');
-            }
-        });
-    }
-
     if (startValidating) {
         startValidating.addEventListener('click', () => {
-            if (isLoggedIn) {
-                switchSection('validate');
-            } else {
-                showToast('Please login first', 'error');
-                openModal('loginModal');
-            }
+            switchToValidate();
         });
     }
 
-    // Generate section navigation buttons
-    const homeFromGenerate = document.getElementById('homeFromGenerate');
-    const generateMaterialFromGenerate = document.getElementById('generateMaterialFromGenerate');
-    const validateFromGenerate = document.getElementById('validateFromGenerate');
-    const bottomHomeFromGenerate = document.getElementById('bottomHomeFromGenerate');
-    const bottomValidateFromGenerate = document.getElementById('bottomValidateFromGenerate');
-    const bottomGenerateMaterialFromGenerate = document.getElementById('bottomGenerateMaterialFromGenerate');
-
-    if (homeFromGenerate) homeFromGenerate.addEventListener('click', () => switchSection('home'));
-    if (generateMaterialFromGenerate) generateMaterialFromGenerate.addEventListener('click', () => switchSection('generateMaterial'));
-    if (validateFromGenerate) validateFromGenerate.addEventListener('click', () => switchSection('validate'));
-    if (bottomHomeFromGenerate) bottomHomeFromGenerate.addEventListener('click', () => switchSection('home'));
-    if (bottomValidateFromGenerate) bottomValidateFromGenerate.addEventListener('click', () => switchSection('validate'));
-    if (bottomGenerateMaterialFromGenerate) bottomGenerateMaterialFromGenerate.addEventListener('click', () => switchSection('generateMaterial'));
-
-    // Validate section navigation buttons
-    const homeFromValidate = document.getElementById('homeFromValidate');
-    const generateFromValidate = document.getElementById('generateFromValidate');
-    const generateMaterialFromValidate = document.getElementById('generateMaterialFromValidate');
-    const bottomHomeFromValidate = document.getElementById('bottomHomeFromValidate');
-    const bottomGenerateFromValidate = document.getElementById('bottomGenerateFromValidate');
-
-    if (homeFromValidate) homeFromValidate.addEventListener('click', () => switchSection('home'));
-    if (generateFromValidate) generateFromValidate.addEventListener('click', () => switchSection('generate'));
-    if (generateMaterialFromValidate) generateMaterialFromValidate.addEventListener('click', () => switchSection('generateMaterial'));
-    if (bottomHomeFromValidate) bottomHomeFromValidate.addEventListener('click', () => switchSection('home'));
-    if (bottomGenerateFromValidate) bottomGenerateFromValidate.addEventListener('click', () => switchSection('generate'));
-
-    // Generate Material section navigation buttons
-    const homeFromGenerateMaterial = document.getElementById('homeFromGenerateMaterial');
-    const generateFromGenerateMaterial = document.getElementById('generateFromGenerateMaterial');
-    const validateFromGenerateMaterial = document.getElementById('validateFromGenerateMaterial');
-
-    if (homeFromGenerateMaterial) homeFromGenerateMaterial.addEventListener('click', () => switchSection('home'));
-    if (generateFromGenerateMaterial) generateFromGenerateMaterial.addEventListener('click', () => switchSection('generate'));
-    if (validateFromGenerateMaterial) validateFromGenerateMaterial.addEventListener('click', () => switchSection('validate'));
-
-    // Generate Paper functionality
     const generatePaperBtn = document.getElementById('generatePaperBtn');
     const downloadPaperBtn = document.getElementById('downloadPaperBtn');
     const resetFormBtn = document.getElementById('resetFormBtn');
-
     if (generatePaperBtn) generatePaperBtn.addEventListener('click', generatePaperPreview);
-    if (downloadPaperBtn) downloadPaperBtn.addEventListener('click', downloadGeneratedPaper);
+    if (downloadPaperBtn) downloadPaperBtn.addEventListener('click', downloadPaperAsPDF);
     if (resetFormBtn) resetFormBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to reset the question paper form? This will clear all inputs and uploaded files.')) {
-            resetGenerateForm();
-        }
+        if (confirm('Reset the form?')) resetGenerateForm();
     });
 
-    // Validate Answers functionality
     const startValidationBtn = document.getElementById('startValidationBtn');
     const downloadResultsBtn = document.getElementById('downloadResultsBtn');
-    const clearFilesBtn = document.getElementById('clearFilesBtn');
     const answersUpload = document.getElementById('answersUpload');
     const answerKeyUpload = document.getElementById('answerKeyUpload');
     const uploadAnswersBtn = document.getElementById('uploadAnswersBtn');
@@ -2240,411 +2088,41 @@ function setupEventListeners() {
 
     if (startValidationBtn) startValidationBtn.addEventListener('click', startValidation);
     if (downloadResultsBtn) downloadResultsBtn.addEventListener('click', downloadValidationResults);
-    if (clearFilesBtn) clearFilesBtn.addEventListener('click', clearAllFiles);
     if (uploadAnswersBtn) uploadAnswersBtn.addEventListener('click', () => answersUpload.click());
     if (uploadAnswerKeyBtn) uploadAnswerKeyBtn.addEventListener('click', () => answerKeyUpload.click());
     if (answersUpload) answersUpload.addEventListener('change', handleFileUpload);
     if (answerKeyUpload) answerKeyUpload.addEventListener('change', handleAnswerKeyUpload);
     if (removeAnswerKeyBtn) removeAnswerKeyBtn.addEventListener('click', removeAnswerKey);
     if (resetValidateFormBtn) resetValidateFormBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to reset the entire validation form? This will clear all files and inputs.')) {
-            resetValidateForm();
-        }
+        if (confirm('Reset validation form?')) resetValidateForm();
     });
 
-    // Close modal buttons
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', () => {
             const modalId = btn.getAttribute('data-modal');
             closeModal(modalId);
         });
     });
-
-    // Close modal when clicking outside
     window.addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal')) {
-            closeModal(e.target.id);
-        }
+        if (e.target.classList.contains('modal')) closeModal(e.target.id);
     });
 
-    // Switch between forms
-    const switchToRegisterLink = document.getElementById('switchToRegister');
-    const switchToLoginLink = document.getElementById('switchToLogin');
-    const switchToLoginFromForgotLink = document.getElementById('switchToLoginFromForgot');
-    const forgotPasswordLink = document.getElementById('forgotPassword');
+    const switchToRegister = document.getElementById('switchToRegister');
+    const switchToLogin = document.getElementById('switchToLogin');
+    if (switchToRegister) switchToRegister.addEventListener('click', (e) => { e.preventDefault(); showRegisterModal(); });
+    if (switchToLogin) switchToLogin.addEventListener('click', (e) => { e.preventDefault(); showLoginModal(); });
 
-    if (switchToRegisterLink) {
-        switchToRegisterLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            showRegisterModal();
-        });
-    }
-
-    if (switchToLoginLink) {
-        switchToLoginLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            showLoginModal();
-        });
-    }
-
-    if (switchToLoginFromForgotLink) {
-        switchToLoginFromForgotLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            showLoginModal();
-        });
-    }
-
-    if (forgotPasswordLink) {
-        forgotPasswordLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            showForgotPasswordModal();
-        });
-    }
-
-    // Form submissions
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
-    const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+    if (loginForm) loginForm.addEventListener('submit', handleLogin);
+    if (registerForm) registerForm.addEventListener('submit', handleRegister);
 
-    console.log('Form elements found:', {
-        loginForm: !!loginForm,
-        registerForm: !!registerForm,
-        forgotPasswordForm: !!forgotPasswordForm
-    });
-
-    if (loginForm) {
-        console.log('Binding login form submit handler');
-        loginForm.addEventListener('submit', handleLogin);
-    } else {
-        console.error('Login form not found!');
-    }
-
-    if (registerForm) {
-        console.log('Binding register form submit handler');
-        registerForm.addEventListener('submit', handleRegister);
-    } else {
-        console.error('Register form not found!');
-    }
-
-    if (forgotPasswordForm) {
-        console.log('Binding forgot password form submit handler');
-        forgotPasswordForm.addEventListener('submit', handleForgotPassword);
-    } else {
-        console.error('Forgot password form not found!');
-    }
-
-    // Generate Material functionality
-    const materialUpload = document.getElementById('materialUpload');
-    const uploadMaterialBtn = document.getElementById('uploadMaterialBtn');
-    const removeMaterialBtn = document.getElementById('removeMaterialBtn');
-    const generateMaterialBtn = document.getElementById('generateMaterialBtn');
-    const downloadMaterialBtn = document.getElementById('downloadMaterialBtn');
-    const resetMaterialBtn = document.getElementById('resetMaterialBtn');
-    
-    if (uploadMaterialBtn) uploadMaterialBtn.addEventListener('click', () => materialUpload.click());
-    if (materialUpload) materialUpload.addEventListener('change', handleMaterialUpload);
-    if (removeMaterialBtn) removeMaterialBtn.addEventListener('click', removeMaterial);
-    if (generateMaterialBtn) generateMaterialBtn.addEventListener('click', generateMaterial);
-    if (downloadMaterialBtn) downloadMaterialBtn.addEventListener('click', downloadMaterial);
-    if (resetMaterialBtn) resetMaterialBtn.addEventListener('click', () => {
-        if (confirm('Reset material form and clear generated content?')) resetMaterialForm();
-    });
-
-    // Source material upload event listeners
-    console.log('Setting up source material upload event listeners...');
-    
     const uploadSourceBtn = document.getElementById('uploadSourceBtn');
     const sourceUpload = document.getElementById('sourceUpload');
     const removeSourceBtn = document.getElementById('removeSourceBtn');
-    
-    if (uploadSourceBtn && sourceUpload) {
-        console.log('Found upload source button and input');
-        uploadSourceBtn.addEventListener('click', function() {
-            console.log('Upload source button clicked');
-            sourceUpload.click();
-        });
-    } else {
-        console.error('Could not find upload source elements:', { uploadSourceBtn, sourceUpload });
-    }
-    
-    if (sourceUpload) {
-        console.log('Found source upload input');
-        sourceUpload.addEventListener('change', handleSourceUpload);
-    }
-    
-    if (removeSourceBtn) {
-        console.log('Found remove source button');
-        removeSourceBtn.addEventListener('click', removeSourceFile);
-    }
-    
-    console.log('Event listeners setup completed');
+    if (uploadSourceBtn && sourceUpload) uploadSourceBtn.addEventListener('click', () => sourceUpload.click());
+    if (sourceUpload) sourceUpload.addEventListener('change', handleSourceUpload);
+    if (removeSourceBtn) removeSourceBtn.addEventListener('click', removeSourceFile);
 }
 
-async function checkBackendConnection() {
-    try {
-        console.log('Checking backend connection...');
-        const response = await fetch(`${API_BASE_URL}/health`, {
-            method: 'GET',
-            signal: AbortSignal.timeout(3000)
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            console.log('✅ Backend connection successful:', data);
-            showToast('Connected to backend server', 'success', 2000);
-        } else {
-            console.warn('⚠️ Backend returned non-OK status');
-            showToast('Backend server is responding but with issues', 'warning');
-        }
-    } catch (error) {
-        console.error('❌ Backend connection failed:', error);
-        showToast('Cannot connect to backend server. Make sure Flask is running on port 5000.', 'error');
-    }
-}
-
-// Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing app...');
-    init();
-});
-
-// Helpers for material generation UI
-function humanFileSize(size) {
-    if (!size) return 'Unknown size';
-    if (size < 1024) return size + ' B';
-    const i = Math.floor(Math.log(size) / Math.log(1024));
-    return (size / Math.pow(1024, i)).toFixed(1) + ' ' + ['B', 'KB', 'MB', 'GB'][i];
-}
-
-// Material handlers
-function handleMaterialUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    uploadedMaterialFile = file;
-    const info = document.getElementById('materialFileInfo');
-    const nameEl = document.getElementById('materialFileName');
-    const sizeEl = document.getElementById('materialFileSize');
-    if (info && nameEl && sizeEl) {
-        nameEl.textContent = file.name;
-        sizeEl.textContent = humanFileSize(file.size);
-        info.style.display = 'block';
-    }
-    const generateBtn = document.getElementById('generateMaterialBtn');
-    if (generateBtn) generateBtn.disabled = false;
-    showToast(`Material "${file.name}" uploaded successfully!`, 'success');
-}
-
-function removeMaterial() {
-    uploadedMaterialFile = null;
-    const materialInput = document.getElementById('materialUpload');
-    if (materialInput) materialInput.value = '';
-    const info = document.getElementById('materialFileInfo');
-    if (info) info.style.display = 'none';
-    const generateBtn = document.getElementById('generateMaterialBtn');
-    if (generateBtn) generateBtn.disabled = true;
-    const downloadBtn = document.getElementById('downloadMaterialBtn');
-    if (downloadBtn) downloadBtn.disabled = true;
-    const preview = document.getElementById('materialPreview');
-    if (preview) preview.style.display = 'none';
-    generatedMaterial = null;
-    showToast('Material removed', 'info');
-}
-
-function escapeHtml(text) {
-    if (!text) return '';
-    return text.replace(/[&"'<>]/g, function (c) {
-        return { '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' }[c];
-    });
-}
-
-function displayGeneratedMaterial(data) {
-    const preview = document.getElementById('materialPreview');
-    const content = document.getElementById('materialPreviewContent');
-    if (!preview || !content) return;
-    content.innerHTML = '';
-    
-    // Show generation settings if present
-    const settings = data.settings || (data.material_types ? { materialTypes: data.material_types, difficulty: data.difficulty, topics: data.topics, instructions: data.instructions } : null);
-    if (settings) {
-        const setEl = document.createElement('div');
-        const types = settings.materialTypes || settings.material_types || [];
-        setEl.innerHTML = `<div style="margin-bottom:0.75rem; font-size:0.95rem; color:#555;"><strong>Settings:</strong> Types: ${escapeHtml(Array.isArray(types) ? types.join(', ') : types)} | Difficulty: ${escapeHtml(settings.difficulty || '')} | Topics: ${escapeHtml(settings.topics || '')}</div>`;
-        if (settings.instructions) {
-            const ins = document.createElement('div');
-            ins.style.fontSize = '0.9rem';
-            ins.style.color = '#666';
-            ins.style.marginBottom = '0.75rem';
-            ins.textContent = `Instructions: ${settings.instructions}`;
-            setEl.appendChild(ins);
-        }
-        content.appendChild(setEl);
-    }
-    
-    if (data.ai_used) {
-        const aiEl = document.createElement('div');
-        aiEl.style.marginBottom = '1rem';
-        aiEl.style.padding = '0.75rem';
-        aiEl.style.background = '#d4edda';
-        aiEl.style.borderRadius = '6px';
-        aiEl.style.borderLeft = '4px solid #28a745';
-        aiEl.innerHTML = '<strong>✓ Generated with Gemini AI</strong>';
-        content.appendChild(aiEl);
-    }
-    
-    const sumEl = document.createElement('div');
-    sumEl.innerHTML = `<h4 style='margin-top:0;'>Summary</h4><p>${escapeHtml(data.summary)}</p>`;
-    content.appendChild(sumEl);
-    
-    if (Array.isArray(data.notes) && data.notes.length) {
-        const notesEl = document.createElement('div');
-        notesEl.innerHTML = `<h4>Short Notes</h4><ul>${data.notes.map(n => `<li>${escapeHtml(n)}</li>`).join('')}</ul>`;
-        content.appendChild(notesEl);
-    }
-    
-    preview.style.display = 'block';
-}
-
-function downloadMaterial() {
-    if (!generatedMaterial) {
-        showToast('No generated material', 'error');
-        return;
-    }
-
-    const settings = generatedMaterial.settings || { material_types: generatedMaterial.material_types, difficulty: generatedMaterial.difficulty, topics: generatedMaterial.topics, instructions: generatedMaterial.instructions };
-    let text = '';
-    if (settings) {
-        const types = settings.materialTypes || settings.material_types || [];
-        text += `Settings: Types: ${Array.isArray(types) ? types.join(', ') : types} | Difficulty: ${settings.difficulty || ''} | Topics: ${settings.topics || ''}\n`;
-        if (settings.instructions) text += `Instructions: ${settings.instructions}\n`;
-        text += '\n';
-    }
-    text += 'Summary:\n' + (generatedMaterial.summary || '') + '\n\n';
-    if (Array.isArray(generatedMaterial.notes) && generatedMaterial.notes.length) {
-        text += 'Notes:\n' + generatedMaterial.notes.join('\n') + '\n';
-    }
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'generated_material.txt';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Material downloaded successfully!', 'success');
-}
-
-// Mock generateMaterial function for testing
-async function mockGenerateMaterial(file, summaryLength, notesCount, materialTypes = [], difficulty = 'medium', topics = '', instructions = '') {
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate delay
-    
-    // Simple mock response with all parameters
-    const simpleSummary = `This is a ${summaryLength} summary (${difficulty} difficulty) of the uploaded file "${file.name}".\nMaterial Types: ${materialTypes.join(', ') || 'summary'}\nTopics: ${topics || 'General'}\nInstructions: ${instructions || 'None'}`;
-    const notes = Array.from({ length: Math.max(1, notesCount) }, (_, i) => 
-        `Note ${i + 1}: Key point about ${file.name} (${difficulty} difficulty)`
-    );
-    
-    return { 
-        success: true, 
-        summary: simpleSummary, 
-        notes: notes,
-        material_types: materialTypes,
-        difficulty: difficulty,
-        topics: topics,
-        instructions: instructions
-    };
-}
-
-// Generate material with Gemini AI
-async function generateMaterial() {
-    const generateBtn = document.getElementById('generateMaterialBtn');
-    const downloadBtn = document.getElementById('downloadMaterialBtn');
-    const summaryLength = document.getElementById('summaryLength').value;
-    const notesCount = parseInt(document.getElementById('notesCount').value || '5', 10);
-    
-    // Get material types
-    const materialTypes = [];
-    const mt_oneword = document.getElementById('mt_oneword');
-    const mt_summary = document.getElementById('mt_summary');
-    const mt_2marks = document.getElementById('mt_2marks');
-    const mt_long = document.getElementById('mt_long');
-    const mt_essay = document.getElementById('mt_essay');
-    
-    if (mt_oneword && mt_oneword.checked) materialTypes.push(mt_oneword.value);
-    if (mt_summary && mt_summary.checked) materialTypes.push(mt_summary.value);
-    if (mt_2marks && mt_2marks.checked) materialTypes.push(mt_2marks.value);
-    if (mt_long && mt_long.checked) materialTypes.push(mt_long.value);
-    if (mt_essay && mt_essay.checked) materialTypes.push(mt_essay.value);
-    
-    const difficulty = (document.getElementById('materialDifficulty') && document.getElementById('materialDifficulty').value) || 'medium';
-    const topics = (document.getElementById('materialTopics') && document.getElementById('materialTopics').value) || '';
-    const instructions = (document.getElementById('materialInstructions') && document.getElementById('materialInstructions').value) || '';
-    
-    if (!uploadedMaterialFile) {
-        showToast('Please upload a file first', 'error');
-        return;
-    }
-    
-    // Show loading state
-    const originalBtnText = generateBtn.innerHTML;
-    generateBtn.disabled = true;
-    generateBtn.innerHTML = '<span class="loading"></span> Generating with Gemini AI...';
-    
-    try {
-        let response;
-        
-        if (USE_MOCK_API) {
-            response = await mockGenerateMaterial(uploadedMaterialFile, summaryLength, notesCount, materialTypes, difficulty, topics, instructions);
-        } else {
-            const fd = new FormData();
-            fd.append('file', uploadedMaterialFile);
-            fd.append('summary_length', summaryLength);
-            fd.append('notes_count', notesCount);
-            fd.append('material_types', JSON.stringify(materialTypes));
-            fd.append('difficulty', difficulty);
-            fd.append('topics', topics);
-            fd.append('instructions', instructions);
-            
-            console.log('Sending request to generate material with Gemini AI...');
-            
-            // Get token from localStorage or sessionStorage
-            const authToken = token || localStorage.getItem('token') || sessionStorage.getItem('token');
-            
-            const resp = await fetch(`${API_BASE_URL}/generate-material`, {
-                method: 'POST',
-                body: fd,
-                headers: authToken ? { 'Authorization': 'Bearer ' + authToken } : {}
-            });
-            
-            if (!resp.ok) {
-                const errorText = await resp.text();
-                console.error('Response error:', errorText);
-                let errorMessage = 'Failed to generate material';
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.message || errorMessage;
-                } catch (e) {
-                    if (errorText) errorMessage = errorText.substring(0, 200);
-                }
-                throw new Error(errorMessage);
-            }
-            
-            response = await resp.json();
-        }
-        
-        if (response && response.success) {
-            generatedMaterial = response;
-            generatedMaterial.ai_used = !USE_MOCK_API;
-            displayGeneratedMaterial(response);
-            if (downloadBtn) downloadBtn.disabled = false;
-            showToast('Material generated successfully with Gemini AI!', 'success');
-        } else {
-            showToast(response.message || 'Failed to generate material', 'error');
-        }
-    } catch (err) {
-        console.error('Generate Material error:', err);
-        showToast(err.message || 'An error occurred while generating material', 'error');
-    } finally {
-        // Reset button state
-        generateBtn.disabled = false;
-        generateBtn.innerHTML = originalBtnText;
-    }
-}
+document.addEventListener('DOMContentLoaded', init);

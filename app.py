@@ -970,6 +970,241 @@ def generate_material():
     except Exception as e:
         logger.error(f"Generate material error: {str(e)}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+    # Add these endpoints to app.py before the if __name__ == '__main__': line
+
+# ========== DASHBOARD & HISTORY ENDPOINTS ==========
+
+# Get user dashboard data
+@app.route('/api/dashboard', methods=['GET', 'OPTIONS'])
+@token_required
+def get_dashboard(current_user):
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        user_id = current_user['_id']
+        
+        # Get user's papers
+        papers = []
+        if papers_collection is not None:
+            papers_cursor = papers_collection.find({'user_id': user_id}).sort('created_at', -1).limit(20)
+            for paper in papers_cursor:
+                papers.append({
+                    'id': str(paper['_id']),
+                    'title': paper.get('title', 'Untitled'),
+                    'subject': paper.get('subject', ''),
+                    'topics': paper.get('topics', ''),
+                    'difficulty': paper.get('difficulty', 'medium'),
+                    'total_marks': paper.get('total_marks', 0),
+                    'question_types': paper.get('question_types', []),
+                    'ai_generated': paper.get('ai_generated', False),
+                    'created_at': paper.get('created_at', datetime.datetime.utcnow()).isoformat() if paper.get('created_at') else None,
+                    'content': paper.get('content', '')
+                })
+        else:
+            for paper in in_memory_papers:
+                if paper.get('user_id') == user_id:
+                    papers.append(paper)
+        
+        # Get user's validations
+        validations = []
+        if validations_collection is not None:
+            validations_cursor = validations_collection.find({'user_id': user_id}).sort('created_at', -1).limit(10)
+            for val in validations_cursor:
+                validations.append({
+                    'id': str(val['_id']),
+                    'total_students': val.get('total_students', 0),
+                    'average_marks': val.get('average_marks', 0),
+                    'created_at': val.get('created_at', datetime.datetime.utcnow()).isoformat() if val.get('created_at') else None
+                })
+        else:
+            for val in in_memory_validations:
+                if val.get('user_id') == user_id:
+                    validations.append(val)
+        
+        total_papers = len(papers)
+        total_validations = len(validations)
+        recent_papers = papers[:5]
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'total_papers': total_papers,
+                'total_validations': total_validations,
+                'member_since': current_user.get('created_at', datetime.datetime.utcnow().isoformat())
+            },
+            'recent_papers': recent_papers,
+            'recent_validations': validations[:5]
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Dashboard error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# Get user's paper history
+@app.route('/api/papers/history', methods=['GET', 'OPTIONS'])
+@token_required
+def get_paper_history(current_user):
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        user_id = current_user['_id']
+        limit = request.args.get('limit', 50, type=int)
+        
+        papers = []
+        if papers_collection is not None:
+            papers_cursor = papers_collection.find({'user_id': user_id}).sort('created_at', -1).limit(limit)
+            for paper in papers_cursor:
+                papers.append({
+                    'id': str(paper['_id']),
+                    'title': paper.get('title', 'Untitled'),
+                    'subject': paper.get('subject', ''),
+                    'topics': paper.get('topics', ''),
+                    'difficulty': paper.get('difficulty', 'medium'),
+                    'total_marks': paper.get('total_marks', 0),
+                    'question_types': paper.get('question_types', []),
+                    'ai_generated': paper.get('ai_generated', False),
+                    'used_context': paper.get('used_context', False),
+                    'created_at': paper.get('created_at', datetime.datetime.utcnow()).isoformat() if paper.get('created_at') else None,
+                    'content_preview': paper.get('content', '')[:200] + '...' if paper.get('content') else ''
+                })
+        else:
+            for paper in in_memory_papers:
+                if paper.get('user_id') == user_id:
+                    papers.append(paper)
+        
+        return jsonify({
+            'success': True,
+            'papers': papers,
+            'count': len(papers)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Paper history error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# Get a specific paper by ID
+@app.route('/api/papers/<paper_id>', methods=['GET', 'OPTIONS'])
+@token_required
+def get_paper(current_user, paper_id):
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        user_id = current_user['_id']
+        paper = None
+        
+        if papers_collection is not None:
+            paper_doc = papers_collection.find_one({'_id': ObjectId(paper_id), 'user_id': user_id})
+            if paper_doc:
+                paper = {
+                    'id': str(paper_doc['_id']),
+                    'title': paper_doc.get('title', 'Untitled'),
+                    'subject': paper_doc.get('subject', ''),
+                    'topics': paper_doc.get('topics', ''),
+                    'difficulty': paper_doc.get('difficulty', 'medium'),
+                    'total_marks': paper_doc.get('total_marks', 0),
+                    'question_types': paper_doc.get('question_types', []),
+                    'ai_generated': paper_doc.get('ai_generated', False),
+                    'used_context': paper_doc.get('used_context', False),
+                    'created_at': paper_doc.get('created_at', datetime.datetime.utcnow()).isoformat() if paper_doc.get('created_at') else None,
+                    'content': paper_doc.get('content', '')
+                }
+        else:
+            for p in in_memory_papers:
+                if p.get('id') == paper_id and p.get('user_id') == user_id:
+                    paper = p
+                    break
+        
+        if not paper:
+            return jsonify({'success': False, 'message': 'Paper not found'}), 404
+        
+        return jsonify({'success': True, 'paper': paper}), 200
+        
+    except Exception as e:
+        logger.error(f"Get paper error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# Delete a paper
+@app.route('/api/papers/<paper_id>', methods=['DELETE', 'OPTIONS'])
+@token_required
+def delete_paper(current_user, paper_id):
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        user_id = current_user['_id']
+        
+        if papers_collection is not None:
+            result = papers_collection.delete_one({'_id': ObjectId(paper_id), 'user_id': user_id})
+            if result.deleted_count == 0:
+                return jsonify({'success': False, 'message': 'Paper not found'}), 404
+        else:
+            for i, paper in enumerate(in_memory_papers):
+                if paper.get('id') == paper_id and paper.get('user_id') == user_id:
+                    in_memory_papers.pop(i)
+                    break
+            else:
+                return jsonify({'success': False, 'message': 'Paper not found'}), 404
+        
+        return jsonify({'success': True, 'message': 'Paper deleted successfully'}), 200
+        
+    except Exception as e:
+        logger.error(f"Delete paper error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# Save generated paper to history
+@app.route('/api/papers/save', methods=['POST', 'OPTIONS'])
+@token_required
+def save_paper(current_user):
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'No data provided'}), 400
+        
+        user_id = current_user['_id']
+        
+        paper_data = {
+            'user_id': user_id,
+            'title': data.get('title', 'Untitled'),
+            'subject': data.get('subject', ''),
+            'topics': data.get('topics', ''),
+            'difficulty': data.get('difficulty', 'medium'),
+            'total_marks': data.get('total_marks', 0),
+            'question_types': data.get('question_types', []),
+            'ai_generated': data.get('ai_generated', False),
+            'used_context': data.get('used_context', False),
+            'content': data.get('content', ''),
+            'created_at': datetime.datetime.utcnow()
+        }
+        
+        paper_id = None
+        if papers_collection is not None:
+            result = papers_collection.insert_one(paper_data)
+            paper_id = str(result.inserted_id)
+        else:
+            paper_id = f"paper_{int(time.time())}_{user_id}"
+            paper_data['id'] = paper_id
+            paper_data['created_at'] = paper_data['created_at'].isoformat()
+            in_memory_papers.append(paper_data)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Paper saved to history',
+            'paper_id': paper_id
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Save paper error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 if __name__ == '__main__':
     logger.info("🚀 Starting Flask server with improved error handling")
